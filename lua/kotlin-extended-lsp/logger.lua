@@ -30,10 +30,27 @@ function M.setup(opts)
   config = vim.tbl_deep_extend('force', config, opts or {})
 
   if config.use_file then
-    log_file = io.open(config.file_path, 'a')
+    -- 既存のファイルハンドルを閉じる（リーク対策）
     if log_file then
+      log_file:write(
+        string.format('--- Session ended (reinitialized): %s ---\n', os.date('%Y-%m-%d %H:%M:%S'))
+      )
+      log_file:close()
+      log_file = nil
+    end
+
+    -- 新しいファイルハンドルを開く
+    local ok, file_or_err = pcall(io.open, config.file_path, 'a')
+    if ok and file_or_err then
+      log_file = file_or_err
       log_file:write(string.format('\n--- Session started: %s ---\n', os.date('%Y-%m-%d %H:%M:%S')))
       log_file:flush()
+    else
+      vim.notify(
+        string.format('Failed to open log file: %s', config.file_path),
+        vim.log.levels.ERROR,
+        { title = 'kotlin-extended-lsp' }
+      )
     end
   end
 end

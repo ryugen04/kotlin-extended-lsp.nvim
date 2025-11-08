@@ -13,10 +13,7 @@ vim.g.loaded_kotlin_extended_lsp = 1
 vim.api.nvim_create_user_command('KotlinExtendedLspHealth', function()
   local ok, plugin = pcall(require, 'kotlin-extended-lsp')
   if not ok then
-    vim.notify(
-      'Failed to load kotlin-extended-lsp: ' .. plugin,
-      vim.log.levels.ERROR
-    )
+    vim.notify('Failed to load kotlin-extended-lsp: ' .. plugin, vim.log.levels.ERROR)
     return
   end
 

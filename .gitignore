@@ -10,6 +10,10 @@ luac.out
 
 # Coverage
 *.coverage
+luacov.*
+
+# Temporary files
+*.tmp
 
 # Editor
 .vscode/

@@ -2,13 +2,19 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (luacheck)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,10 +31,10 @@ jobs:
         run: luarocks install luacheck
 
       - name: Run luacheck
-        run: luacheck lua/ plugin/
+        run: luacheck lua/ plugin/ tests/
 
   format:
-    name: Format Check
+    name: Format Check (stylua)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +44,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          args: --check lua/ plugin/
+          args: --check lua/ plugin/ tests/
 
   test:
-    name: Test
+    name: Test (Neovim ${{ matrix.neovim }} on ${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         neovim: [stable, nightly]
@@ -73,26 +80,108 @@ jobs:
       - name: Run Tests
         run: |
           nvim --version
-          nvim --headless -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+          nvim --headless --noplugin -u tests/minimal_init.lua \
+            -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+
+      - name: Upload test results (if failed)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.neovim }}
+          path: |
+            *.log
+            /tmp/*.log
 
   docs:
-    name: Documentation
+    name: Documentation Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check help tags
+      - name: Check help documentation
         run: |
           if [ ! -f "doc/kotlin-extended-lsp.txt" ]; then
-            echo "Help file not found!"
+            echo "❌ Help file not found!"
             exit 1
           fi
-          echo "Help documentation exists"
+          echo "✅ Help documentation exists"
 
       - name: Validate README
         run: |
           if [ ! -f "README.md" ]; then
-            echo "README.md not found!"
+            echo "❌ README.md not found!"
             exit 1
           fi
-          echo "README.md exists"
+          echo "✅ README.md exists"
+
+      - name: Check for TODO/FIXME
+        run: |
+          count=$(grep -rn "TODO\|FIXME" lua/ plugin/ --exclude-dir=tests || true | wc -l)
+          echo "Found $count TODO/FIXME comments"
+          if [ "$count" -gt 0 ]; then
+            echo "⚠️  Warning: Found TODO/FIXME comments"
+            grep -rn "TODO\|FIXME" lua/ plugin/ --exclude-dir=tests || true
+          fi
+
+  dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required files
+        run: |
+          files=("LICENSE" "README.md" "CONTRIBUTING.md")
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+          done
+          echo "✅ All required files present"
+
+  integration:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [lint, format, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+
+      - name: Integration smoke test
+        run: |
+          nvim --version
+          nvim --headless --noplugin \
+            -c "set runtimepath+=." \
+            -c "lua require('kotlin-extended-lsp').setup()" \
+            -c "lua print('Plugin loaded successfully')" \
+            -c "quit"
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint, format, test, docs, dependencies, integration]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.format.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.docs.result }}" != "success" ] || \
+             [ "${{ needs.dependencies.result }}" != "success" ] || \
+             [ "${{ needs.integration.result }}" != "success" ]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"

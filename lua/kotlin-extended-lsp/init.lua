@@ -55,7 +55,7 @@ function M.setup(user_config)
 
       logger.debug('LspAttach event triggered', { client = client.name, buffer = args.buf })
       M.on_attach(client, args.buf)
-    end
+    end,
   })
 
   -- Setup user commands
@@ -63,6 +63,12 @@ function M.setup(user_config)
 
   -- Setup autocommands
   M.setup_autocommands()
+
+  -- Initialize decompile cache
+  local decompile = load_module('decompile')
+  if config.get_value('performance.cache_enabled') then
+    logger.debug('Initializing decompile cache')
+  end
 
   M._initialized = true
   logger.info('kotlin-extended-lsp.nvim initialized successfully')
@@ -262,19 +268,33 @@ function M.setup_commands()
   end, {
     desc = 'Decompile a JAR/class file',
     nargs = '?',
-    complete = 'file'
+    complete = 'file',
   })
 
   -- Clear cache
   vim.api.nvim_create_user_command('KotlinClearCache', function()
     local decompile = load_module('decompile')
     decompile.clear_cache()
+    vim.notify('Decompile cache cleared', vim.log.levels.INFO, { title = 'kotlin-extended-lsp' })
+  end, { desc = 'Clear decompile cache' })
+
+  -- Clean expired cache entries
+  vim.api.nvim_create_user_command('KotlinCleanCache', function()
+    local decompile = load_module('decompile')
+    local removed = decompile.clean_cache()
     vim.notify(
-      'Decompile cache cleared',
+      string.format('Cleaned %d expired cache entries', removed),
       vim.log.levels.INFO,
       { title = 'kotlin-extended-lsp' }
     )
-  end, { desc = 'Clear decompile cache' })
+  end, { desc = 'Clean expired cache entries' })
+
+  -- Show cache statistics
+  vim.api.nvim_create_user_command('KotlinCacheStats', function()
+    local decompile = load_module('decompile')
+    local stats = decompile.cache_stats()
+    print(vim.inspect(stats))
+  end, { desc = 'Show cache statistics' })
 
   -- Toggle logging
   vim.api.nvim_create_user_command('KotlinToggleLog', function(opts)
@@ -300,7 +320,7 @@ function M.setup_commands()
     nargs = '?',
     complete = function()
       return { 'trace', 'debug', 'info', 'warn', 'error', 'off' }
-    end
+    end,
   })
 
   -- Show config
@@ -322,7 +342,18 @@ function M.setup_autocommands()
     group = group,
     callback = function()
       logger.close()
-    end
+    end,
+  })
+
+  -- Cleanup attached buffers on BufDelete
+  vim.api.nvim_create_autocmd('BufDelete', {
+    group = group,
+    callback = function(args)
+      if M._attached_buffers[args.buf] then
+        M._attached_buffers[args.buf] = nil
+        logger.debug('Removed buffer from attached list', { buffer = args.buf })
+      end
+    end,
   })
 
   logger.debug('Autocommands registered')

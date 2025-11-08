@@ -1,8 +1,8 @@
 -- lsp_client.lua
 -- Robust LSP client utilities with retry logic and error handling
 
-local logger = require('kotlin-extended-lsp.logger')
 local config = require('kotlin-extended-lsp.config')
+local logger = require('kotlin-extended-lsp.logger')
 
 local M = {}
 
@@ -67,20 +67,39 @@ function M.request(method, params, handler, opts)
   logger.lsp_request(method, params)
 
   local function make_request(attempt)
-    local request_success, request_id = pcall(function()
+    local timed_out = false
+    local timeout_timer = nil
+    local request_id = nil
+
+    local request_success, request_id_or_err = pcall(function()
       return client.request(method, params, function(err, result, ctx, lsp_config)
+        -- Cancel timeout timer if still active
+        if timeout_timer then
+          timeout_timer:stop()
+          timeout_timer:close()
+          timeout_timer = nil
+        end
+
+        -- Ignore if already timed out
+        if timed_out then
+          logger.debug(string.format('Ignoring late response for timed out request: %s', method))
+          return
+        end
+
         if err then
           logger.lsp_response(method, false, err)
 
           -- Retry logic
           if attempt < retry_count then
-            logger.warn(string.format(
-              'LSP request %s failed (attempt %d/%d), retrying in %dms',
-              method,
-              attempt,
-              retry_count,
-              retry_delay_ms
-            ))
+            logger.warn(
+              string.format(
+                'LSP request %s failed (attempt %d/%d), retrying in %dms',
+                method,
+                attempt,
+                retry_count,
+                retry_delay_ms
+              )
+            )
 
             vim.defer_fn(function()
               make_request(attempt + 1)
@@ -89,7 +108,9 @@ function M.request(method, params, handler, opts)
           end
 
           -- Final failure
-          logger.error(string.format('LSP request %s failed after %d attempts', method, retry_count))
+          logger.error(
+            string.format('LSP request %s failed after %d attempts', method, retry_count)
+          )
           if handler then
             handler(err, nil)
           end
@@ -104,53 +125,43 @@ function M.request(method, params, handler, opts)
     end)
 
     if not request_success then
-      logger.error(string.format('Failed to make LSP request: %s', request_id))
+      logger.error(string.format('Failed to make LSP request: %s', request_id_or_err))
       if handler then
-        handler(request_id, nil)
+        handler(request_id_or_err, nil)
       end
       return
     end
 
-    -- Setup timeout
-    if timeout_ms > 0 then
-      vim.defer_fn(function()
-        if request_id then
-          pcall(client.cancel_request, request_id)
+    request_id = request_id_or_err
+
+    -- Setup timeout with proper cleanup
+    if timeout_ms > 0 and request_id then
+      timeout_timer = vim.loop.new_timer()
+      timeout_timer:start(
+        timeout_ms,
+        0,
+        vim.schedule_wrap(function()
+          timed_out = true
+          if request_id then
+            pcall(client.cancel_request, request_id)
+          end
           logger.warn(string.format('LSP request %s timed out after %dms', method, timeout_ms))
-        end
-      end, timeout_ms)
+
+          if handler then
+            handler('Request timed out', nil)
+          end
+
+          if timeout_timer then
+            timeout_timer:stop()
+            timeout_timer:close()
+            timeout_timer = nil
+          end
+        end)
+      )
     end
   end
 
   make_request(1)
-end
-
--- Make synchronous LSP request (blocks until response)
-function M.request_sync(method, params, opts)
-  opts = opts or {}
-  local timeout_ms = opts.timeout_ms or config.get_value('lsp.timeout_ms')
-
-  local result_data = nil
-  local error_data = nil
-  local completed = false
-
-  M.request(method, params, function(err, result)
-    error_data = err
-    result_data = result
-    completed = true
-  end, opts)
-
-  -- Wait for completion with timeout
-  local start_time = vim.loop.now()
-  while not completed do
-    if vim.loop.now() - start_time > timeout_ms then
-      logger.error(string.format('Synchronous LSP request %s timed out', method))
-      return nil, 'timeout'
-    end
-    vim.wait(10)
-  end
-
-  return result_data, error_data
 end
 
 -- Check server capabilities
@@ -182,7 +193,10 @@ function M.get_capabilities_report()
     '',
     'Editing:',
     string.format('  renameProvider: %s', caps.renameProvider and 'YES' or 'NO'),
-    string.format('  documentFormattingProvider: %s', caps.documentFormattingProvider and 'YES' or 'NO'),
+    string.format(
+      '  documentFormattingProvider: %s',
+      caps.documentFormattingProvider and 'YES' or 'NO'
+    ),
     string.format('  codeActionProvider: %s', caps.codeActionProvider and 'YES' or 'NO'),
     '',
     'Information:',

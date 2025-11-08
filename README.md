@@ -1,44 +1,44 @@
 # kotlin-extended-lsp.nvim
 
-> Neovimで[JetBrains公式kotlin-lsp](https://github.com/Kotlin/kotlin-lsp)の機能を拡張し、JARファイルやコンパイル済みクラスへのナビゲーションを可能にするプラグインです。
+> A Neovim plugin that extends the [official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) to enable navigation into JAR files and compiled classes with automatic decompilation.
 
-**注意**: このプラグインはJetBrains公式kotlin-lsp（プレアルファ段階）を使用します。
+**Note**: This plugin uses the official JetBrains kotlin-lsp, which is currently in pre-alpha stage.
 
 [![Neovim](https://img.shields.io/badge/Neovim-0.8+-green.svg?style=flat-square&logo=neovim)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-5.1+-blue.svg?style=flat-square&logo=lua)](https://www.lua.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-## 概要
+## Overview
 
-kotlin-extended-lsp.nvimは、JetBrains公式kotlin-lspとシームレスに統合し、コンパイル済みのJARファイルやクラスファイル内のコードへジャンプする際に自動的にデコンパイルして表示します。[omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim)からインスピレーションを得て開発されました。
+kotlin-extended-lsp.nvim seamlessly integrates with the official JetBrains kotlin-lsp and automatically decompiles compiled JAR files and class files when you navigate to code definitions. Inspired by [omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim).
 
-## 主な機能
+## Features
 
-- JARファイル、クラスファイルへの定義ジャンプ時の自動デコンパイル
-- 標準的なLSP操作（定義、実装、型定義、宣言へのジャンプ）の拡張
-- デコンパイル結果のキャッシュによる高速化
-- カスタマイズ可能なキーマップとUIオプション
-- パフォーマンスチューニングオプション
-- 詳細なロギングとヘルスチェック機能
+- Automatic decompilation when jumping to definitions in JAR files and class files
+- Enhanced standard LSP operations (go-to-definition, implementation, type definition, declaration)
+- Cached decompilation results for improved performance
+- Customizable keymaps and UI options
+- Performance tuning capabilities
+- Comprehensive logging and health check functionality
 
-## 動作デモ
+## Demo
 
-<!-- デモGIFをここに配置 -->
+<!-- Place demo GIF here -->
 ```
-[デモGIFのプレースホルダー]
-JARファイル内のKotlinコードへジャンプし、
-自動的にデコンパイルされた内容を表示
+[Demo GIF Placeholder]
+Jump to Kotlin code inside JAR files
+and view automatically decompiled content
 ```
 
-## 必要要件
+## Requirements
 
-- Neovim 0.8以上
-- [JetBrains公式kotlin-lsp](https://github.com/Kotlin/kotlin-lsp)がインストールされ、設定されていること
-  - インストール方法: `brew install JetBrains/utils/kotlin-lsp`
-  - 現在プレアルファ段階です
-- [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig)（推奨）
+- Neovim 0.8 or higher
+- [Official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) installed and configured
+  - Install with: `brew install JetBrains/utils/kotlin-lsp`
+  - Currently in pre-alpha stage
+- [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (recommended)
 
-## インストール
+## Installation
 
 ### lazy.nvim
 
@@ -49,7 +49,7 @@ JARファイル内のKotlinコードへジャンプし、
   ft = 'kotlin',
   config = function()
     require('kotlin-extended-lsp').setup({
-      -- 設定オプション
+      -- Configuration options
     })
   end,
 }
@@ -64,7 +64,7 @@ use {
   ft = 'kotlin',
   config = function()
     require('kotlin-extended-lsp').setup({
-      -- 設定オプション
+      -- Configuration options
     })
   end,
 }
@@ -76,17 +76,17 @@ use {
 Plug 'neovim/nvim-lspconfig'
 Plug 'yourusername/kotlin-extended-lsp.nvim'
 
-" init.luaまたはLuaスクリプト内で
+" In init.lua or Lua script
 lua << EOF
 require('kotlin-extended-lsp').setup({
-  -- 設定オプション
+  -- Configuration options
 })
 EOF
 ```
 
-## クイックスタート
+## Quick Start
 
-最小限の設定例です。
+Minimal configuration example:
 
 ```lua
 require('kotlin-extended-lsp').setup({
@@ -94,109 +94,109 @@ require('kotlin-extended-lsp').setup({
   auto_setup_keymaps = true,
 })
 
--- kotlin-lspの設定
+-- Configure kotlin-lsp
 require('lspconfig').kotlin_lsp.setup({
-  -- 標準的なLSP設定
+  -- Standard LSP configuration
 })
 ```
 
-この設定により、Kotlinファイルを開いたときに自動的にプラグインが有効化され、デフォルトのキーマップが設定されます。
+This configuration automatically enables the plugin and sets up default keymaps when you open Kotlin files.
 
-## 詳細設定
+## Configuration
 
-すべてのデフォルト値を含む完全な設定例です。
+Complete configuration example with all default values:
 
 ```lua
 require('kotlin-extended-lsp').setup({
-  -- プラグインの有効化
+  -- Enable plugin
   enabled = true,
 
-  -- キーマップの自動設定
+  -- Auto-setup keymaps
   auto_setup_keymaps = true,
   keymaps = {
-    -- ナビゲーション（ジャンプ機能）
-    definition = 'gd',          -- 定義へジャンプ
-    implementation = 'gi',      -- 実装へジャンプ
-    type_definition = 'gy',     -- 型定義へジャンプ
-    declaration = 'gD',         -- 宣言へジャンプ
-    references = 'gr',          -- 参照検索
+    -- Navigation (jump functions)
+    definition = 'gd',          -- Jump to definition
+    implementation = 'gi',      -- Jump to implementation
+    type_definition = 'gy',     -- Jump to type definition
+    declaration = 'gD',         -- Jump to declaration
+    references = 'gr',          -- Find references
 
-    -- ドキュメント表示
-    hover = 'K',                -- ホバードキュメント
-    signature_help = '<C-k>',   -- シグネチャヘルプ
+    -- Documentation
+    hover = 'K',                -- Hover documentation
+    signature_help = '<C-k>',   -- Signature help
 
-    -- 編集機能
-    rename = '<leader>rn',      -- シンボルリネーム
-    code_action = '<leader>ca', -- コードアクション
-    format = '<leader>f',       -- フォーマット
+    -- Editing
+    rename = '<leader>rn',      -- Rename symbol
+    code_action = '<leader>ca', -- Code actions
+    format = '<leader>f',       -- Format
 
-    -- 診断機能
-    goto_prev = '[d',           -- 前の診断へ移動
-    goto_next = ']d',           -- 次の診断へ移動
-    open_float = '<leader>e',   -- 診断フロート表示
-    setloclist = '<leader>q',   -- 診断をロケーションリストへ
+    -- Diagnostics
+    goto_prev = '[d',           -- Go to previous diagnostic
+    goto_next = ']d',           -- Go to next diagnostic
+    open_float = '<leader>e',   -- Show diagnostic float
+    setloclist = '<leader>q',   -- Set diagnostics to location list
   },
 
-  -- 動作設定
-  use_global_handlers = false,      -- グローバルハンドラーを使用
-  silent_fallbacks = false,         -- フォールバック時に通知しない
-  decompile_on_jar = true,          -- JAR内へジャンプ時に自動デコンパイル
-  show_capabilities_on_attach = false,  -- アタッチ時にサーバー機能を表示
+  -- Behavior settings
+  use_global_handlers = false,      -- Use global handlers
+  silent_fallbacks = false,         -- Don't notify on fallback
+  decompile_on_jar = true,          -- Auto-decompile when jumping into JARs
+  show_capabilities_on_attach = false,  -- Show server capabilities on attach
 
-  -- デコンパイル設定
+  -- Decompile settings
   decompile = {
-    show_line_numbers = true,       -- 行番号を表示
-    syntax_highlight = true,        -- シンタックスハイライトを有効化
-    auto_close_on_leave = false,    -- バッファを離れたときに自動で閉じる
-    prefer_source = true,           -- ソースが利用可能な場合は優先
+    show_line_numbers = true,       -- Show line numbers
+    syntax_highlight = true,        -- Enable syntax highlighting
+    auto_close_on_leave = false,    -- Auto-close buffer when leaving
+    prefer_source = true,           -- Prefer source when available
   },
 
-  -- パフォーマンス設定
+  -- Performance settings
   performance = {
-    debounce_ms = 100,              -- デバウンス時間（ミリ秒）
-    max_file_size = 1024 * 1024,    -- 最大ファイルサイズ（1MB）
-    cache_enabled = true,           -- キャッシュを有効化
-    cache_ttl = 3600,               -- キャッシュの有効期限（秒）
+    debounce_ms = 100,              -- Debounce time (milliseconds)
+    max_file_size = 1024 * 1024,    -- Maximum file size (1MB)
+    cache_enabled = true,           -- Enable caching
+    cache_ttl = 3600,               -- Cache time-to-live (seconds)
   },
 
-  -- LSP設定
+  -- LSP settings
   lsp = {
-    timeout_ms = 5000,              -- タイムアウト時間
-    retry_count = 3,                -- リトライ回数
-    retry_delay_ms = 500,           -- リトライ間隔
+    timeout_ms = 5000,              -- Timeout
+    retry_count = 3,                -- Retry count
+    retry_delay_ms = 500,           -- Retry delay
   },
 
-  -- ロギング設定
+  -- Logging settings
   log = {
     level = 'info',                 -- trace, debug, info, warn, error, off
-    use_console = true,             -- コンソールに出力
-    use_file = false,               -- ファイルに出力
+    use_console = true,             -- Output to console
+    use_file = false,               -- Output to file
     file_path = vim.fn.stdpath('cache') .. '/kotlin-extended-lsp.log',
   },
 
-  -- UI設定
+  -- UI settings
   ui = {
     float = {
-      border = 'rounded',           -- フロートウィンドウのボーダースタイル
-      max_width = 100,              -- 最大幅
-      max_height = 30,              -- 最大高さ
+      border = 'rounded',           -- Float window border style
+      max_width = 100,              -- Maximum width
+      max_height = 30,              -- Maximum height
     },
     signs = {
-      decompiled = '󰘧',             -- デコンパイル済みサイン
-      loading = '󰔟',                -- ロード中サイン
-      error = '',                  -- エラーサイン
+      decompiled = '󰘧',             -- Decompiled sign
+      loading = '󰔟',                -- Loading sign
+      error = '',                  -- Error sign
     },
   },
 })
 ```
 
-## コマンド
+## Commands
 
-プラグインは以下のユーザーコマンドを提供します。
+The plugin provides the following user commands:
 
 ### `:KotlinLspCapabilities`
 
-kotlin-lspサーバーの機能情報を表示します。
+Display kotlin-lsp server capabilities.
 
 ```vim
 :KotlinLspCapabilities
@@ -204,7 +204,7 @@ kotlin-lspサーバーの機能情報を表示します。
 
 ### `:KotlinDecompile [uri]`
 
-指定したURIのJAR/クラスファイルをデコンパイルします。引数を省略した場合、現在のバッファのファイルをデコンパイルします。
+Decompile the specified JAR/class file URI. If no argument is provided, decompiles the current buffer's file.
 
 ```vim
 :KotlinDecompile
@@ -213,7 +213,7 @@ kotlin-lspサーバーの機能情報を表示します。
 
 ### `:KotlinClearCache`
 
-デコンパイルキャッシュをクリアします。
+Clear the decompilation cache.
 
 ```vim
 :KotlinClearCache
@@ -221,7 +221,7 @@ kotlin-lspサーバーの機能情報を表示します。
 
 ### `:KotlinToggleLog [level]`
 
-ログレベルを変更します。引数を省略した場合、現在のログレベルを表示します。
+Change the log level. If no argument is provided, displays the current log level.
 
 ```vim
 :KotlinToggleLog debug
@@ -229,11 +229,11 @@ kotlin-lspサーバーの機能情報を表示します。
 :KotlinToggleLog
 ```
 
-利用可能なレベル: `trace`, `debug`, `info`, `warn`, `error`, `off`
+Available levels: `trace`, `debug`, `info`, `warn`, `error`, `off`
 
 ### `:KotlinShowConfig`
 
-現在の設定を表示します。
+Display the current configuration.
 
 ```vim
 :KotlinShowConfig
@@ -241,150 +241,150 @@ kotlin-lspサーバーの機能情報を表示します。
 
 ### `:KotlinExtendedLspHealth`
 
-プラグインのヘルスチェックを実行します。
+Run a health check for the plugin.
 
 ```vim
 :KotlinExtendedLspHealth
 ```
 
-## キーマップ
+## Keymaps
 
-デフォルトのキーマップは以下の通りです（`auto_setup_keymaps = true`の場合）。
+Default keymaps (when `auto_setup_keymaps = true`):
 
-### ナビゲーション（ジャンプ機能）
+### Navigation (Jump Functions)
 
-| キー | 機能 | 説明 |
-|------|------|------|
-| `gd` | 定義へジャンプ | JARファイル内の定義も自動デコンパイル |
-| `gi` | 実装へジャンプ | 実装が見つからない場合は定義へフォールバック |
-| `gy` | 型定義へジャンプ | 型の定義位置へジャンプ |
-| `gD` | 宣言へジャンプ | 宣言位置へジャンプ |
-| `gr` | 参照検索 | シンボルの参照箇所を検索 |
+| Key | Function | Description |
+|-----|----------|-------------|
+| `gd` | Jump to definition | Auto-decompiles definitions in JAR files |
+| `gi` | Jump to implementation | Falls back to definition if implementation not found |
+| `gy` | Jump to type definition | Jump to type definition location |
+| `gD` | Jump to declaration | Jump to declaration location |
+| `gr` | Find references | Search for symbol references |
 
-### ドキュメント表示
+### Documentation
 
-| キー | 機能 | 説明 |
-|------|------|------|
-| `K` | ホバードキュメント | カーソル位置のシンボルのドキュメントを表示 |
-| `<C-k>` | シグネチャヘルプ | 関数のシグネチャ情報を表示（挿入モードでも利用可） |
+| Key | Function | Description |
+|-----|----------|-------------|
+| `K` | Hover documentation | Display documentation for symbol under cursor |
+| `<C-k>` | Signature help | Display function signature (works in insert mode) |
 
-### 編集機能
+### Editing
 
-| キー | 機能 | 説明 |
-|------|------|------|
-| `<leader>rn` | シンボルリネーム | カーソル位置のシンボルをリネーム |
-| `<leader>ca` | コードアクション | 利用可能なコードアクションを表示（ビジュアルモードでも利用可） |
-| `<leader>f` | フォーマット | ドキュメント全体または選択範囲をフォーマット |
+| Key | Function | Description |
+|-----|----------|-------------|
+| `<leader>rn` | Rename symbol | Rename symbol under cursor |
+| `<leader>ca` | Code actions | Display available code actions (works in visual mode) |
+| `<leader>f` | Format | Format entire document or selection |
 
-### 診断機能
+### Diagnostics
 
-| キー | 機能 | 説明 |
-|------|------|------|
-| `[d` | 前の診断へ移動 | 前のエラー・警告へジャンプ |
-| `]d` | 次の診断へ移動 | 次のエラー・警告へジャンプ |
-| `<leader>e` | 診断フロート表示 | カーソル位置の診断をフロートウィンドウで表示 |
-| `<leader>q` | 診断をロケーションリストへ | すべての診断をロケーションリストに設定 |
+| Key | Function | Description |
+|-----|----------|-------------|
+| `[d` | Go to previous diagnostic | Jump to previous error/warning |
+| `]d` | Go to next diagnostic | Jump to next error/warning |
+| `<leader>e` | Show diagnostic float | Display diagnostic in float window |
+| `<leader>q` | Set diagnostics to location list | Add all diagnostics to location list |
 
-### キーマップのカスタマイズ
+### Keymap Customization
 
-キーマップは設定で自由にカスタマイズできます。空文字列に設定すると、そのキーマップは無効化されます。
+You can freely customize keymaps in the configuration. Set to empty string to disable a keymap.
 
 ```lua
 require('kotlin-extended-lsp').setup({
   keymaps = {
-    -- ナビゲーション
+    -- Navigation
     definition = '<leader>gd',
     implementation = '<leader>gi',
-    type_definition = '',  -- 無効化
-    declaration = '',      -- 無効化
+    type_definition = '',  -- Disabled
+    declaration = '',      -- Disabled
     references = 'gr',
 
-    -- ドキュメント
+    -- Documentation
     hover = 'K',
-    signature_help = '<C-s>',  -- Ctrl-sに変更
+    signature_help = '<C-s>',  -- Changed to Ctrl-s
 
-    -- 編集
-    rename = '<F2>',           -- F2に変更
+    -- Editing
+    rename = '<F2>',           -- Changed to F2
     code_action = '<leader>ca',
-    format = '<leader>lf',     -- <leader>lfに変更
+    format = '<leader>lf',     -- Changed to <leader>lf
 
-    -- 診断
-    goto_prev = '[e',          -- [eに変更
-    goto_next = ']e',          -- ]eに変更
-    open_float = 'gl',         -- glに変更
-    setloclist = '',           -- 無効化
+    -- Diagnostics
+    goto_prev = '[e',          -- Changed to [e
+    goto_next = ']e',          -- Changed to ]e
+    open_float = 'gl',         -- Changed to gl
+    setloclist = '',           -- Disabled
   },
 })
 ```
 
-## ヘルスチェック
+## Health Check
 
-プラグインの状態を確認するには、以下のコマンドを実行します。
+To check the plugin status, run:
 
 ```vim
 :KotlinExtendedLspHealth
 ```
 
-または、Neovimの標準ヘルスチェック機能を使用できます。
+Or use Neovim's standard health check:
 
 ```vim
 :checkhealth kotlin-extended-lsp
 ```
 
-ヘルスチェックでは、以下の項目が確認されます。
+The health check verifies:
 
-- プラグインの初期化状態
-- kotlin-lspサーバーの接続状態
-- サーバーがサポートする機能
-- デコンパイル機能の利用可否
-- キャッシュの状態
+- Plugin initialization status
+- kotlin-lsp server connection
+- Server-supported capabilities
+- Decompilation feature availability
+- Cache status
 
-## トラブルシューティング
+## Troubleshooting
 
-### JARファイル内へジャンプできない
+### Cannot jump into JAR files
 
-1. JetBrains公式kotlin-lspが正しくインストールされているか確認してください
+1. Verify that the official JetBrains kotlin-lsp is correctly installed
    - `brew install JetBrains/utils/kotlin-lsp`
-2. ヘルスチェックを実行して、`kotlin/jarClassContents`コマンドが利用可能か確認してください
-3. ログレベルを`debug`に設定して、詳細なログを確認してください
+2. Run the health check to verify the `kotlin/jarClassContents` command is available
+3. Set log level to `debug` to view detailed logs
 
-```lua
+```vim
 :KotlinToggleLog debug
 ```
 
-### デコンパイル結果が表示されない
+### Decompilation results not displayed
 
-1. ファイルサイズが`performance.max_file_size`を超えていないか確認してください
-2. キャッシュをクリアしてみてください: `:KotlinClearCache`
-3. タイムアウト時間を延長してみてください
+1. Check if file size exceeds `performance.max_file_size`
+2. Try clearing the cache: `:KotlinClearCache`
+3. Try extending the timeout
 
 ```lua
 require('kotlin-extended-lsp').setup({
   lsp = {
-    timeout_ms = 10000,  -- 10秒に延長
+    timeout_ms = 10000,  -- Extend to 10 seconds
   },
 })
 ```
 
-### パフォーマンスが遅い
+### Performance issues
 
-1. キャッシュが有効になっているか確認してください
-2. デバウンス時間を調整してください
-3. 最大ファイルサイズを制限してください
+1. Verify caching is enabled
+2. Adjust debounce time
+3. Limit maximum file size
 
 ```lua
 require('kotlin-extended-lsp').setup({
   performance = {
     cache_enabled = true,
     debounce_ms = 200,
-    max_file_size = 512 * 1024,  -- 512KBに制限
+    max_file_size = 512 * 1024,  -- Limit to 512KB
   },
 })
 ```
 
-### ログファイルを確認したい
+### Checking log files
 
-ログファイル出力を有効にして、詳細を確認できます。
+Enable log file output to view detailed information:
 
 ```lua
 require('kotlin-extended-lsp').setup({
@@ -396,7 +396,7 @@ require('kotlin-extended-lsp').setup({
 })
 ```
 
-ログファイルの場所:
+Log file location:
 
 ```bash
 # Unix/Linux/macOS
@@ -406,25 +406,25 @@ require('kotlin-extended-lsp').setup({
 ~/AppData/Local/nvim-data/kotlin-extended-lsp.log
 ```
 
-## 貢献
+## Contributing
 
-貢献を歓迎します。バグ報告、機能提案、プルリクエストはすべて歓迎されます。
+Contributions are welcome! Bug reports, feature suggestions, and pull requests are all appreciated.
 
-詳細は[CONTRIBUTING.md](CONTRIBUTING.md)をご覧ください。
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-## ライセンス
+## License
 
-MIT License - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。
+MIT License - See [LICENSE](LICENSE) file for details.
 
-## 謝辞
+## Acknowledgments
 
-このプロジェクトは以下のプロジェクトに感謝します。
+This project is grateful to:
 
-- [JetBrains公式kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) - 公式Kotlin言語サーバー実装（プレアルファ段階）
-- [omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim) - このプラグインのインスピレーション源
-- Neovimコミュニティ - 素晴らしいエディタとエコシステム
+- [Official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) - Official Kotlin language server implementation (pre-alpha stage)
+- [omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim) - Inspiration for this plugin
+- Neovim community - For the amazing editor and ecosystem
 
-## リンク
+## Links
 
 - [Issue Tracker](https://github.com/yourusername/kotlin-extended-lsp.nvim/issues)
 - [Pull Requests](https://github.com/yourusername/kotlin-extended-lsp.nvim/pulls)

@@ -1,15 +1,21 @@
 -- decompile.lua
 -- JAR/class file decompilation with caching and error handling
 
-local logger = require('kotlin-extended-lsp.logger')
+local cache = require('kotlin-extended-lsp.cache')
 local config = require('kotlin-extended-lsp.config')
+local logger = require('kotlin-extended-lsp.logger')
 local lsp_client = require('kotlin-extended-lsp.lsp_client')
 
 local M = {}
 
--- Decompile cache
-local cache = {}
-local cache_timestamps = {}
+-- Initialize cache with configuration
+local function init_cache()
+  local perf_config = config.get_value('performance')
+  cache.setup({
+    max_size = perf_config.max_cache_entries or 50,
+    ttl = perf_config.cache_ttl or 3600,
+  })
+end
 
 -- Check if URI is a compiled file
 function M.is_compiled_file(uri)
@@ -17,55 +23,63 @@ function M.is_compiled_file(uri)
     return false
   end
 
-  return uri:match("%.class$") ~= nil or uri:match("jar:file:") ~= nil
-end
-
--- Clean cache entry if expired
-local function clean_cache_entry(uri)
-  if not cache[uri] then
-    return
+  -- URI長の制限（DoS対策）
+  if #uri > 4096 then
+    logger.warn('URI too long, rejecting', { length = #uri })
+    return false
   end
 
-  local cache_ttl = config.get_value('performance.cache_ttl')
-  local timestamp = cache_timestamps[uri]
-
-  if not timestamp or (os.time() - timestamp) > cache_ttl then
-    logger.debug('Cache entry expired', { uri = uri })
-    cache[uri] = nil
-    cache_timestamps[uri] = nil
-    return true
+  -- パストラバーサル攻撃対策
+  if uri:match('%.%.') then
+    logger.warn('Path traversal attempt detected', { uri = uri })
+    return false
   end
 
-  return false
-end
-
--- Get from cache
-local function get_from_cache(uri)
-  if not config.get_value('performance.cache_enabled') then
-    return nil
+  -- 不正な文字の検出（すべての制御文字を拒否）
+  for i = 1, #uri do
+    local byte = uri:byte(i)
+    -- 0x00-0x1F の制御文字をすべて拒否
+    if byte and byte <= 0x1F then
+      logger.warn('Invalid control characters in URI', { uri = uri })
+      return false
+    end
   end
 
-  clean_cache_entry(uri)
-  return cache[uri]
-end
-
--- Store in cache
-local function store_in_cache(uri, content)
-  if not config.get_value('performance.cache_enabled') then
-    return
+  -- スキーム検証（許可されたスキームのみ）
+  local valid_schemes = { 'jar:file:', 'file:' }
+  local has_valid_scheme = false
+  for _, scheme in ipairs(valid_schemes) do
+    if uri:sub(1, #scheme) == scheme then
+      has_valid_scheme = true
+      break
+    end
   end
 
-  cache[uri] = content
-  cache_timestamps[uri] = os.time()
-  logger.debug('Stored in cache', { uri = uri, size = #content })
+  if not has_valid_scheme then
+    logger.debug('Invalid URI scheme', { uri = uri })
+    return false
+  end
+
+  -- クラスファイル拡張子の確認
+  return uri:match('%.class$') ~= nil or uri:match('jar:file:.*%.class$') ~= nil
 end
 
 -- Clear cache
 function M.clear_cache()
-  local count = vim.tbl_count(cache)
-  cache = {}
-  cache_timestamps = {}
+  local count = cache.clear()
   logger.info(string.format('Cleared cache (%d entries)', count))
+end
+
+-- Get cache statistics
+function M.cache_stats()
+  return cache.stats()
+end
+
+-- Clean expired cache entries
+function M.clean_cache()
+  local removed = cache.clean_expired()
+  logger.info(string.format('Cleaned %d expired cache entries', removed))
+  return removed
 end
 
 -- Create decompiled buffer
@@ -73,21 +87,19 @@ local function create_decompiled_buffer(uri, content)
   -- Check file size limit
   local max_size = config.get_value('performance.max_file_size')
   if #content > max_size then
-    local err_msg = string.format(
-      'Decompiled content too large (%d bytes, max: %d bytes)',
-      #content,
-      max_size
-    )
+    local err_msg =
+      string.format('Decompiled content too large (%d bytes, max: %d bytes)', #content, max_size)
     logger.warn(err_msg, { uri = uri })
     return nil, err_msg
   end
 
-  -- Search for existing buffer
+  -- Search for existing buffer（競合状態対策でpcall使用）
   local existing_bufnr = nil
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      local buf_name = vim.api.nvim_buf_get_name(bufnr)
-      if buf_name == uri then
+    local ok, valid = pcall(vim.api.nvim_buf_is_valid, bufnr)
+    if ok and valid then
+      local ok2, buf_name = pcall(vim.api.nvim_buf_get_name, bufnr)
+      if ok2 and buf_name == uri then
         existing_bufnr = bufnr
         break
       end
@@ -97,8 +109,14 @@ local function create_decompiled_buffer(uri, content)
   local bufnr
   if existing_bufnr then
     bufnr = existing_bufnr
-    -- Make buffer temporarily modifiable
-    vim.api.nvim_buf_set_option(bufnr, 'modifiable', true)
+    -- Make buffer temporarily modifiable（Neovim 0.10対応）
+    local ok = pcall(function()
+      vim.bo[bufnr].modifiable = true
+    end)
+    if not ok then
+      logger.error('Failed to make buffer modifiable', { bufnr = bufnr, uri = uri })
+      return nil, 'Failed to modify buffer options'
+    end
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
   else
     -- Create new scratch buffer
@@ -106,29 +124,37 @@ local function create_decompiled_buffer(uri, content)
     if bufnr == 0 then
       return nil, 'Failed to create buffer'
     end
-    vim.api.nvim_buf_set_name(bufnr, uri)
+    local ok, err = pcall(vim.api.nvim_buf_set_name, bufnr, uri)
+    if not ok then
+      logger.error('Failed to set buffer name', { error = err, uri = uri })
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+      return nil, err
+    end
   end
 
-  -- Set content
+  -- Set content（エラー時はロールバック）
   local lines = vim.split(content, '\n', { plain = true })
   local ok, err = pcall(vim.api.nvim_buf_set_lines, bufnr, 0, -1, false, lines)
   if not ok then
     logger.error('Failed to set buffer lines', { error = err, uri = uri })
+    if not existing_bufnr then
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
     return nil, err
   end
 
-  -- Set buffer options
+  -- Set buffer options（Neovim 0.10対応）
   local show_line_numbers = config.get_value('decompile.show_line_numbers')
   local syntax_highlight = config.get_value('decompile.syntax_highlight')
 
-  vim.api.nvim_buf_set_option(bufnr, 'buftype', 'nofile')
-  vim.api.nvim_buf_set_option(bufnr, 'modifiable', false)
-  vim.api.nvim_buf_set_option(bufnr, 'readonly', true)
-  vim.api.nvim_buf_set_option(bufnr, 'swapfile', false)
-  vim.api.nvim_buf_set_option(bufnr, 'bufhidden', 'hide')
+  vim.bo[bufnr].buftype = 'nofile'
+  vim.bo[bufnr].modifiable = false
+  vim.bo[bufnr].readonly = true
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].bufhidden = 'hide'
 
   if syntax_highlight then
-    vim.api.nvim_buf_set_option(bufnr, 'filetype', 'kotlin')
+    vim.bo[bufnr].filetype = 'kotlin'
   end
 
   -- Set buffer-local keymaps for easy navigation
@@ -193,13 +219,15 @@ function M.decompile_uri(uri, callback)
   end
 
   -- Check cache first
-  local cached_content = get_from_cache(uri)
-  if cached_content then
-    logger.debug('Using cached decompiled content', { uri = uri })
-    if callback then
-      callback(nil, cached_content)
+  if config.get_value('performance.cache_enabled') then
+    local cached_content = cache.get(uri)
+    if cached_content then
+      logger.debug('Using cached decompiled content', { uri = uri })
+      if callback then
+        callback(nil, cached_content)
+      end
+      return
     end
-    return
   end
 
   -- Check if custom command is supported
@@ -237,7 +265,9 @@ function M.decompile_uri(uri, callback)
       end
 
       -- Store in cache
-      store_in_cache(uri, result)
+      if config.get_value('performance.cache_enabled') then
+        cache.put(uri, result)
+      end
 
       logger.info('Decompile successful', { uri = uri, size = #result })
       if callback then
@@ -267,11 +297,7 @@ function M.handle_definition_result(err, result, ctx, lsp_config, opts)
     if not opts.silent then
       local silent_fallbacks = config.get_value('silent_fallbacks')
       if not silent_fallbacks then
-        vim.notify(
-          'No definition found',
-          vim.log.levels.WARN,
-          { title = 'kotlin-extended-lsp' }
-        )
+        vim.notify('No definition found', vim.log.levels.WARN, { title = 'kotlin-extended-lsp' })
       end
     end
     return

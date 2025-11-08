@@ -54,6 +54,7 @@ M.defaults = {
     max_file_size = 1024 * 1024, -- 1MB
     cache_enabled = true,
     cache_ttl = 3600, -- 1 hour
+    max_cache_entries = 50, -- Maximum number of cached decompiled files
   },
 
   -- LSP settings
@@ -119,7 +120,7 @@ local schema = {
       goto_next = { type = 'string', optional = true },
       open_float = { type = 'string', optional = true },
       setloclist = { type = 'string', optional = true },
-    }
+    },
   },
 
   decompile = {
@@ -129,7 +130,7 @@ local schema = {
       syntax_highlight = { type = 'boolean' },
       auto_close_on_leave = { type = 'boolean' },
       prefer_source = { type = 'boolean' },
-    }
+    },
   },
 
   performance = {
@@ -139,7 +140,8 @@ local schema = {
       max_file_size = { type = 'number', min = 0 },
       cache_enabled = { type = 'boolean' },
       cache_ttl = { type = 'number', min = 0 },
-    }
+      max_cache_entries = { type = 'number', min = 1, max = 1000 },
+    },
   },
 
   lsp = {
@@ -148,7 +150,7 @@ local schema = {
       timeout_ms = { type = 'number', min = 100 },
       retry_count = { type = 'number', min = 0, max = 10 },
       retry_delay_ms = { type = 'number', min = 0 },
-    }
+    },
   },
 
   log = {
@@ -158,7 +160,7 @@ local schema = {
       use_console = { type = 'boolean' },
       use_file = { type = 'boolean' },
       file_path = { type = 'string' },
-    }
+    },
   },
 
   ui = {
@@ -170,7 +172,7 @@ local schema = {
           border = { type = 'string' },
           max_width = { type = 'number', min = 20 },
           max_height = { type = 'number', min = 10 },
-        }
+        },
       },
       signs = {
         type = 'table',
@@ -178,9 +180,9 @@ local schema = {
           decompiled = { type = 'string' },
           loading = { type = 'string' },
           error = { type = 'string' },
-        }
+        },
       },
-    }
+    },
   },
 }
 
@@ -254,14 +256,14 @@ end
 function M.setup(user_config)
   user_config = user_config or {}
 
-  -- Validate user config
-  local ok, err = M.validate(user_config)
+  -- Merge with defaults first
+  M.current = vim.tbl_deep_extend('force', M.defaults, user_config)
+
+  -- Validate merged config to ensure all required fields are present
+  local ok, err = M.validate(M.current)
   if not ok then
     error(string.format('Invalid configuration: %s', err))
   end
-
-  -- Merge with defaults
-  M.current = vim.tbl_deep_extend('force', M.defaults, user_config)
 
   return M.current
 end

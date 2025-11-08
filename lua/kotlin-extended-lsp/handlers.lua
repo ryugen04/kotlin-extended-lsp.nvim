@@ -1,10 +1,10 @@
 -- handlers.lua
 -- Enhanced LSP handlers with fallback strategies
 
-local logger = require('kotlin-extended-lsp.logger')
 local config = require('kotlin-extended-lsp.config')
-local lsp_client = require('kotlin-extended-lsp.lsp_client')
 local decompile = require('kotlin-extended-lsp.decompile')
+local logger = require('kotlin-extended-lsp.logger')
+local lsp_client = require('kotlin-extended-lsp.lsp_client')
 
 local M = {}
 
@@ -19,13 +19,9 @@ function M.extended_definition(opts)
 
   local params = vim.lsp.util.make_position_params()
 
-  lsp_client.request(
-    'textDocument/definition',
-    params,
-    function(err, result, ctx, lsp_config)
-      decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
-    end
-  )
+  lsp_client.request('textDocument/definition', params, function(err, result, ctx, lsp_config)
+    decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+  end)
 end
 
 -- Extended textDocument/implementation with fallback
@@ -56,31 +52,27 @@ function M.extended_implementation(opts)
     return
   end
 
-  lsp_client.request(
-    'textDocument/implementation',
-    params,
-    function(err, result, ctx, lsp_config)
-      -- Check if we got results
-      if not result or vim.tbl_isempty(result) or err then
-        logger.debug('No implementation found or error, falling back to definition')
+  lsp_client.request('textDocument/implementation', params, function(err, result, ctx, lsp_config)
+    -- Check if we got results
+    if not result or vim.tbl_isempty(result) or err then
+      logger.debug('No implementation found or error, falling back to definition')
 
-        local silent_fallbacks = config.get_value('silent_fallbacks')
-        if not silent_fallbacks and not opts.silent then
-          vim.notify(
-            'Implementation not found, falling back to definition',
-            vim.log.levels.INFO,
-            { title = 'kotlin-extended-lsp' }
-          )
-        end
-
-        M.extended_definition({ silent = true })
-        return
+      local silent_fallbacks = config.get_value('silent_fallbacks')
+      if not silent_fallbacks and not opts.silent then
+        vim.notify(
+          'Implementation not found, falling back to definition',
+          vim.log.levels.INFO,
+          { title = 'kotlin-extended-lsp' }
+        )
       end
 
-      -- Handle result with decompile support
-      decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+      M.extended_definition({ silent = true })
+      return
     end
-  )
+
+    -- Handle result with decompile support
+    decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+  end)
 end
 
 -- Extended textDocument/typeDefinition with fallback
@@ -111,29 +103,25 @@ function M.extended_type_definition(opts)
     return
   end
 
-  lsp_client.request(
-    'textDocument/typeDefinition',
-    params,
-    function(err, result, ctx, lsp_config)
-      if not result or vim.tbl_isempty(result) or err then
-        logger.debug('No type definition found or error, falling back to definition')
+  lsp_client.request('textDocument/typeDefinition', params, function(err, result, ctx, lsp_config)
+    if not result or vim.tbl_isempty(result) or err then
+      logger.debug('No type definition found or error, falling back to definition')
 
-        local silent_fallbacks = config.get_value('silent_fallbacks')
-        if not silent_fallbacks and not opts.silent then
-          vim.notify(
-            'Type definition not found, falling back to definition',
-            vim.log.levels.INFO,
-            { title = 'kotlin-extended-lsp' }
-          )
-        end
-
-        M.extended_definition({ silent = true })
-        return
+      local silent_fallbacks = config.get_value('silent_fallbacks')
+      if not silent_fallbacks and not opts.silent then
+        vim.notify(
+          'Type definition not found, falling back to definition',
+          vim.log.levels.INFO,
+          { title = 'kotlin-extended-lsp' }
+        )
       end
 
-      decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+      M.extended_definition({ silent = true })
+      return
     end
-  )
+
+    decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+  end)
 end
 
 -- Extended textDocument/declaration with fallback
@@ -164,29 +152,25 @@ function M.extended_declaration(opts)
     return
   end
 
-  lsp_client.request(
-    'textDocument/declaration',
-    params,
-    function(err, result, ctx, lsp_config)
-      if not result or vim.tbl_isempty(result) or err then
-        logger.debug('No declaration found or error, falling back to definition')
+  lsp_client.request('textDocument/declaration', params, function(err, result, ctx, lsp_config)
+    if not result or vim.tbl_isempty(result) or err then
+      logger.debug('No declaration found or error, falling back to definition')
 
-        local silent_fallbacks = config.get_value('silent_fallbacks')
-        if not silent_fallbacks and not opts.silent then
-          vim.notify(
-            'Declaration not found, falling back to definition',
-            vim.log.levels.INFO,
-            { title = 'kotlin-extended-lsp' }
-          )
-        end
-
-        M.extended_definition({ silent = true })
-        return
+      local silent_fallbacks = config.get_value('silent_fallbacks')
+      if not silent_fallbacks and not opts.silent then
+        vim.notify(
+          'Declaration not found, falling back to definition',
+          vim.log.levels.INFO,
+          { title = 'kotlin-extended-lsp' }
+        )
       end
 
-      decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+      M.extended_definition({ silent = true })
+      return
     end
-  )
+
+    decompile.handle_definition_result(err, result, ctx, lsp_config, opts)
+  end)
 end
 
 -- Register global handlers (optional, use with caution)
