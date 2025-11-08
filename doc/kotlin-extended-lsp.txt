@@ -1,0 +1,950 @@
+*kotlin-extended-lsp.txt*    Extended LSP navigation for Kotlin with decompilation
+
+==============================================================================
+CONTENTS                                      *kotlin-extended-lsp-contents*
+
+    1. Introduction ........................ |kotlin-extended-lsp-intro|
+    2. Features ............................ |kotlin-extended-lsp-features|
+    3. Requirements ........................ |kotlin-extended-lsp-requirements|
+    4. Installation ........................ |kotlin-extended-lsp-installation|
+    5. Configuration ....................... |kotlin-extended-lsp-config|
+    6. Commands ............................ |kotlin-extended-lsp-commands|
+    7. Keymaps ............................. |kotlin-extended-lsp-keymaps|
+    8. API Reference ....................... |kotlin-extended-lsp-api|
+    9. Health Check ........................ |kotlin-extended-lsp-health|
+    10. Troubleshooting .................... |kotlin-extended-lsp-troubleshooting|
+    11. License and Credits ................ |kotlin-extended-lsp-license|
+
+==============================================================================
+1. INTRODUCTION                                  *kotlin-extended-lsp-intro*
+
+kotlin-extended-lsp.nvim は、Kotlin Language Server Protocol（LSP）の
+ナビゲーション機能を拡張するNeovimプラグインです。
+
+主な機能としてJARファイルやclassファイルのデコンパイル、LSPメソッドが
+サポートされていない場合のフォールバック戦略、構造化されたログ記録と
+エラーハンドリング、設定の検証、ヘルスチェックシステムを提供します。
+
+Kotlinプロジェクトで依存関係のソースコードを確認したい場合や、
+コンパイル済みライブラリ内の定義にジャンプしたい場合に便利です。
+
+==============================================================================
+2. FEATURES                                   *kotlin-extended-lsp-features*
+
+• JAR/classファイルの自動デコンパイル
+  - kotlin-lspの `kotlin/jarClassContents` カスタムコマンドを使用
+  - デコンパイル結果のインメモリキャッシング
+  - カスタマイズ可能なキャッシュTTL
+
+• 拡張LSPナビゲーション
+  - `textDocument/definition` のデコンパイルサポート
+  - `textDocument/implementation` のフォールバック機能
+  - `textDocument/typeDefinition` のフォールバック機能
+  - `textDocument/declaration` のフォールバック機能
+
+• 堅牢なLSPクライアント
+  - タイムアウト付きリクエスト処理
+  - 自動リトライロジック
+  - サーバー機能の検証
+
+• 構造化ログシステム
+  - コンソールとファイルへの出力
+  - 設定可能なログレベル（trace/debug/info/warn/error/off）
+  - LSPリクエスト/レスポンスのトレース
+
+• 設定管理
+  - スキーマベースの設定検証
+  - ランタイムでの設定更新
+  - 詳細なエラーメッセージ
+
+• パフォーマンス最適化
+  - デバウンス処理
+  - ファイルサイズ制限
+  - 効率的なキャッシング戦略
+
+==============================================================================
+3. REQUIREMENTS                           *kotlin-extended-lsp-requirements*
+
+必須
+• Neovim >= 0.8.0
+• JetBrains公式kotlin-lsp (https://github.com/Kotlin/kotlin-lsp)
+  - インストール: brew install JetBrains/utils/kotlin-lsp
+  - 現在プレアルファ段階です
+• lspconfig.nvim (https://github.com/neovim/nvim-lspconfig)
+
+推奨
+• nvim-notify (https://github.com/rcarriga/nvim-notify) - 通知表示の向上
+
+注意: JetBrains公式kotlin-lsp は `kotlin/jarClassContents` カスタムコマンドを
+サポートしています。このコマンドはJARファイルのデコンパイルに使用されます。
+
+==============================================================================
+4. INSTALLATION                           *kotlin-extended-lsp-installation*
+
+------------------------------------------------------------------------------
+4.1 lazy.nvim ~
+>lua
+    {
+      'yourusername/kotlin-extended-lsp.nvim',
+      ft = 'kotlin',
+      dependencies = {
+        'neovim/nvim-lspconfig',
+      },
+      config = function()
+        require('kotlin-extended-lsp').setup({
+          -- 設定オプションは |kotlin-extended-lsp-config| を参照
+        })
+      end,
+    }
+<
+
+------------------------------------------------------------------------------
+4.2 packer.nvim ~
+>lua
+    use {
+      'yourusername/kotlin-extended-lsp.nvim',
+      ft = 'kotlin',
+      requires = {
+        'neovim/nvim-lspconfig',
+      },
+      config = function()
+        require('kotlin-extended-lsp').setup({
+          -- 設定オプションは |kotlin-extended-lsp-config| を参照
+        })
+      end,
+    }
+<
+
+------------------------------------------------------------------------------
+4.3 vim-plug ~
+>vim
+    Plug 'neovim/nvim-lspconfig'
+    Plug 'yourusername/kotlin-extended-lsp.nvim'
+<
+
+init.lua に以下を追加:
+>lua
+    require('kotlin-extended-lsp').setup({
+      -- 設定オプションは |kotlin-extended-lsp-config| を参照
+    })
+<
+
+==============================================================================
+5. CONFIGURATION                                *kotlin-extended-lsp-config*
+
+setup() 関数でプラグインを設定します。以下はデフォルト設定です:
+
+>lua
+    require('kotlin-extended-lsp').setup({
+      -- 一般設定
+      enabled = true,
+
+      -- キーマップ設定
+      auto_setup_keymaps = true,
+      keymaps = {
+        definition = 'gd',
+        implementation = 'gi',
+        type_definition = 'gy',
+        declaration = 'gD',
+      },
+
+      -- 動作設定
+      use_global_handlers = false,
+      silent_fallbacks = false,
+      decompile_on_jar = true,
+      show_capabilities_on_attach = false,
+
+      -- デコンパイル設定
+      decompile = {
+        show_line_numbers = true,
+        syntax_highlight = true,
+        auto_close_on_leave = false,
+        prefer_source = true,
+      },
+
+      -- パフォーマンス設定
+      performance = {
+        debounce_ms = 100,
+        max_file_size = 1024 * 1024, -- 1MB
+        cache_enabled = true,
+        cache_ttl = 3600, -- 1時間（秒）
+      },
+
+      -- LSP設定
+      lsp = {
+        timeout_ms = 5000,
+        retry_count = 3,
+        retry_delay_ms = 500,
+      },
+
+      -- ログ設定
+      log = {
+        level = 'info',
+        use_console = true,
+        use_file = false,
+        file_path = vim.fn.stdpath('cache') .. '/kotlin-extended-lsp.log',
+      },
+
+      -- UI設定
+      ui = {
+        float = {
+          border = 'rounded',
+          max_width = 100,
+          max_height = 30,
+        },
+        signs = {
+          decompiled = '󰘧',
+          loading = '󰔟',
+          error = '',
+        },
+      },
+    })
+<
+
+------------------------------------------------------------------------------
+5.1 設定オプション詳細 ~
+
+*kotlin-extended-lsp-config-enabled*
+enabled                         (boolean, default: true)
+    プラグインを有効化します。false にするとプラグインの機能が
+    完全に無効になります。
+
+*kotlin-extended-lsp-config-auto_setup_keymaps*
+auto_setup_keymaps              (boolean, default: true)
+    LSP アタッチ時に自動的にキーマップを設定します。
+
+*kotlin-extended-lsp-config-keymaps*
+keymaps                         (table)
+    各ナビゲーション機能のキーマップを定義します。
+    空文字列を設定するとそのキーマップは登録されません。
+
+    定義可能なキー:
+    • definition       - 定義へジャンプ
+    • implementation   - 実装へジャンプ
+    • type_definition  - 型定義へジャンプ
+    • declaration      - 宣言へジャンプ
+
+*kotlin-extended-lsp-config-use_global_handlers*
+use_global_handlers             (boolean, default: false)
+    グローバルLSPハンドラーを登録します。これにより標準の
+    |vim.lsp.buf.definition()| などもデコンパイルをサポートします。
+
+    注意: 他の言語サーバーにも影響する可能性があります。
+          慎重に使用してください。
+
+*kotlin-extended-lsp-config-silent_fallbacks*
+silent_fallbacks                (boolean, default: false)
+    フォールバック発生時の通知を抑制します。
+
+*kotlin-extended-lsp-config-decompile_on_jar*
+decompile_on_jar                (boolean, default: true)
+    JAR/classファイルを自動的にデコンパイルします。
+
+*kotlin-extended-lsp-config-show_capabilities_on_attach*
+show_capabilities_on_attach     (boolean, default: false)
+    LSPアタッチ時にサーバー機能レポートを表示します。
+
+*kotlin-extended-lsp-config-decompile*
+decompile.show_line_numbers     (boolean, default: true)
+    デコンパイルされたバッファに行番号を表示します。
+
+decompile.syntax_highlight      (boolean, default: true)
+    デコンパイルされたバッファでシンタックスハイライトを有効にします。
+
+decompile.auto_close_on_leave   (boolean, default: false)
+    デコンパイルされたバッファから離れた際に自動的にクローズします。
+
+decompile.prefer_source         (boolean, default: true)
+    ソースコードが利用可能な場合はデコンパイルより優先します。
+
+*kotlin-extended-lsp-config-performance*
+performance.debounce_ms         (number, default: 100)
+    デバウンス遅延時間（ミリ秒）。
+
+performance.max_file_size       (number, default: 1048576)
+    デコンパイル結果の最大ファイルサイズ（バイト）。
+
+performance.cache_enabled       (boolean, default: true)
+    デコンパイル結果のキャッシングを有効にします。
+
+performance.cache_ttl           (number, default: 3600)
+    キャッシュの有効期間（秒）。
+
+*kotlin-extended-lsp-config-lsp*
+lsp.timeout_ms                  (number, default: 5000)
+    LSPリクエストのタイムアウト時間（ミリ秒）。
+
+lsp.retry_count                 (number, default: 3)
+    LSPリクエストのリトライ回数。
+
+lsp.retry_delay_ms              (number, default: 500)
+    リトライ間の遅延時間（ミリ秒）。
+
+*kotlin-extended-lsp-config-log*
+log.level                       (string, default: 'info')
+    ログレベル。'trace', 'debug', 'info', 'warn', 'error', 'off' から選択。
+
+log.use_console                 (boolean, default: true)
+    コンソールへのログ出力を有効にします。
+
+log.use_file                    (boolean, default: false)
+    ファイルへのログ出力を有効にします。
+
+log.file_path                   (string)
+    ログファイルのパス。
+
+*kotlin-extended-lsp-config-ui*
+ui.float.border                 (string, default: 'rounded')
+    フローティングウィンドウのボーダースタイル。
+
+ui.float.max_width              (number, default: 100)
+    フローティングウィンドウの最大幅。
+
+ui.float.max_height             (number, default: 30)
+    フローティングウィンドウの最大高さ。
+
+ui.signs.decompiled             (string, default: '󰘧')
+    デコンパイル済みファイルを示すサイン。
+
+ui.signs.loading                (string, default: '󰔟')
+    読み込み中を示すサイン。
+
+ui.signs.error                  (string, default: '')
+    エラーを示すサイン。
+
+==============================================================================
+6. COMMANDS                                  *kotlin-extended-lsp-commands*
+
+*:KotlinLspCapabilities*
+:KotlinLspCapabilities
+    kotlin-lspサーバーの機能レポートを表示します。
+    サポートされているLSPメソッドとカスタムコマンドを確認できます。
+
+    例:
+>
+    :KotlinLspCapabilities
+<
+
+*:KotlinDecompile*
+:KotlinDecompile [{uri}]
+    指定されたURIのJAR/classファイルをデコンパイルします。
+    URIを省略した場合は現在のバッファをデコンパイルします。
+
+    例:
+>
+    :KotlinDecompile
+    :KotlinDecompile jar:file:///path/to/lib.jar!/com/example/Class.class
+<
+
+*:KotlinClearCache*
+:KotlinClearCache
+    デコンパイルキャッシュをクリアします。
+    メモリ使用量を削減したい場合や、キャッシュされた内容を
+    更新したい場合に使用します。
+
+    例:
+>
+    :KotlinClearCache
+<
+
+*:KotlinToggleLog*
+:KotlinToggleLog [{level}]
+    ログレベルを切り替えます。
+    レベルを省略した場合は現在のログレベルを表示します。
+
+    使用可能なレベル:
+    • trace   - 最も詳細なログ
+    • debug   - デバッグ情報
+    • info    - 一般的な情報
+    • warn    - 警告
+    • error   - エラーのみ
+    • off     - ログ無効
+
+    例:
+>
+    :KotlinToggleLog debug
+    :KotlinToggleLog
+<
+
+*:KotlinShowConfig*
+:KotlinShowConfig
+    現在の設定を表示します。デバッグや設定確認に便利です。
+
+    例:
+>
+    :KotlinShowConfig
+<
+
+*:KotlinExtendedLspHealth*
+:KotlinExtendedLspHealth
+    ヘルスチェックを実行します。
+    |:checkhealth| kotlin-extended-lsp と同等です。
+
+    例:
+>
+    :KotlinExtendedLspHealth
+<
+
+==============================================================================
+7. KEYMAPS                                    *kotlin-extended-lsp-keymaps*
+
+デフォルトで以下のキーマップが設定されます（auto_setup_keymaps = true の場合）:
+
+ナビゲーション（ジャンプ機能） ~
+
+*kotlin-extended-lsp-gd*
+gd                              定義へジャンプ（デコンパイルサポート）
+                                JAR/classファイルの場合は自動的にデコンパイルされます。
+
+*kotlin-extended-lsp-gi*
+gi                              実装へジャンプ（フォールバック付き）
+                                実装が見つからない場合は定義へフォールバックします。
+
+*kotlin-extended-lsp-gy*
+gy                              型定義へジャンプ（フォールバック付き）
+                                型定義が見つからない場合は定義へフォールバックします。
+
+*kotlin-extended-lsp-gD*
+gD                              宣言へジャンプ（フォールバック付き）
+                                宣言が見つからない場合は定義へフォールバックします。
+
+*kotlin-extended-lsp-gr*
+gr                              参照検索
+                                シンボルの参照箇所を検索します。
+
+ドキュメント表示 ~
+
+*kotlin-extended-lsp-K*
+K                               ホバードキュメント
+                                カーソル位置のシンボルのドキュメントを表示します。
+
+*kotlin-extended-lsp-C-k*
+<C-k>                           シグネチャヘルプ
+                                関数のシグネチャ情報を表示します。
+                                ノーマルモードと挿入モードの両方で利用可能。
+
+編集機能 ~
+
+*kotlin-extended-lsp-leader-rn*
+<leader>rn                      シンボルリネーム
+                                カーソル位置のシンボルをリネームします。
+
+*kotlin-extended-lsp-leader-ca*
+<leader>ca                      コードアクション
+                                利用可能なコードアクションを表示します。
+                                ノーマルモードとビジュアルモードの両方で利用可能。
+
+*kotlin-extended-lsp-leader-f*
+<leader>f                       フォーマット
+                                ドキュメント全体または選択範囲をフォーマットします。
+                                ノーマルモード: ドキュメント全体
+                                ビジュアルモード: 選択範囲のみ
+
+診断機能 ~
+
+*kotlin-extended-lsp-[d*
+[d                              前の診断へ移動
+                                前のエラー・警告へジャンプします。
+
+*kotlin-extended-lsp-]d*
+]d                              次の診断へ移動
+                                次のエラー・警告へジャンプします。
+
+*kotlin-extended-lsp-leader-e*
+<leader>e                       診断フロート表示
+                                カーソル位置の診断をフロートウィンドウで表示します。
+
+*kotlin-extended-lsp-leader-q*
+<leader>q                       診断をロケーションリストへ
+                                すべての診断をロケーションリストに設定します。
+
+デコンパイルされたバッファ内 ~
+
+q                               デコンパイルされたバッファを閉じる
+
+------------------------------------------------------------------------------
+カスタムキーマップの設定例 ~
+
+キーマップを無効にして手動で設定する場合:
+>lua
+    require('kotlin-extended-lsp').setup({
+      auto_setup_keymaps = false,
+    })
+
+    -- カスタムキーマップ
+    vim.api.nvim_create_autocmd('LspAttach', {
+      callback = function(args)
+        local client = vim.lsp.get_client_by_id(args.data.client_id)
+        if client.name == 'kotlin_lsp' then
+          local handlers = require('kotlin-extended-lsp').get_handlers()
+          local opts = { buffer = args.buf, noremap = true, silent = true }
+
+          vim.keymap.set('n', '<leader>kd', handlers.extended_definition,
+            vim.tbl_extend('force', opts, { desc = 'Go to definition' }))
+          vim.keymap.set('n', '<leader>ki', handlers.extended_implementation,
+            vim.tbl_extend('force', opts, { desc = 'Go to implementation' }))
+        end
+      end
+    })
+<
+
+==============================================================================
+8. API REFERENCE                                 *kotlin-extended-lsp-api*
+
+プログラムから直接プラグイン機能を使用する場合のAPIリファレンスです。
+
+------------------------------------------------------------------------------
+8.1 Main Module ~
+
+*kotlin-extended-lsp.setup()*
+require('kotlin-extended-lsp').setup({config})
+    プラグインを初期化します。
+
+    Parameters:
+        {config} (table|nil) 設定テーブル。|kotlin-extended-lsp-config| 参照。
+
+    Example:
+>lua
+        require('kotlin-extended-lsp').setup({
+          decompile_on_jar = true,
+          log = { level = 'debug' }
+        })
+<
+
+*kotlin-extended-lsp.get_handlers()*
+require('kotlin-extended-lsp').get_handlers()
+    ハンドラーモジュールを取得します。
+
+    Returns:
+        handlers モジュール
+
+    Example:
+>lua
+        local handlers = require('kotlin-extended-lsp').get_handlers()
+        handlers.extended_definition({ silent = true })
+<
+
+*kotlin-extended-lsp.get_lsp_client()*
+require('kotlin-extended-lsp').get_lsp_client()
+    LSPクライアントユーティリティモジュールを取得します。
+
+    Returns:
+        lsp_client モジュール
+
+*kotlin-extended-lsp.get_decompile()*
+require('kotlin-extended-lsp').get_decompile()
+    デコンパイルユーティリティモジュールを取得します。
+
+    Returns:
+        decompile モジュール
+
+*kotlin-extended-lsp.get_config()*
+require('kotlin-extended-lsp').get_config()
+    設定モジュールを取得します。
+
+    Returns:
+        config モジュール
+
+*kotlin-extended-lsp.get_logger()*
+require('kotlin-extended-lsp').get_logger()
+    ロガーモジュールを取得します。
+
+    Returns:
+        logger モジュール
+
+------------------------------------------------------------------------------
+8.2 Handlers Module ~
+
+*kotlin-extended-lsp-handlers.extended_definition()*
+handlers.extended_definition({opts})
+    拡張定義ジャンプを実行します。
+
+    Parameters:
+        {opts} (table|nil) オプション
+            {silent} (boolean) 通知を抑制
+
+*kotlin-extended-lsp-handlers.extended_implementation()*
+handlers.extended_implementation({opts})
+    拡張実装ジャンプを実行します。フォールバック付き。
+
+    Parameters:
+        {opts} (table|nil) オプション
+            {silent} (boolean) 通知を抑制
+
+*kotlin-extended-lsp-handlers.extended_type_definition()*
+handlers.extended_type_definition({opts})
+    拡張型定義ジャンプを実行します。フォールバック付き。
+
+    Parameters:
+        {opts} (table|nil) オプション
+            {silent} (boolean) 通知を抑制
+
+*kotlin-extended-lsp-handlers.extended_declaration()*
+handlers.extended_declaration({opts})
+    拡張宣言ジャンプを実行します。フォールバック付き。
+
+    Parameters:
+        {opts} (table|nil) オプション
+            {silent} (boolean) 通知を抑制
+
+------------------------------------------------------------------------------
+8.3 LSP Client Module ~
+
+*kotlin-extended-lsp-lsp_client.get_kotlin_client()*
+lsp_client.get_kotlin_client()
+    kotlin-lspクライアントを取得します。
+
+    Returns:
+        client オブジェクト、または nil
+
+*kotlin-extended-lsp-lsp_client.is_attached()*
+lsp_client.is_attached({bufnr})
+    指定されたバッファにkotlin-lspがアタッチされているか確認します。
+
+    Parameters:
+        {bufnr} (number|nil) バッファ番号。nil の場合は現在のバッファ
+
+    Returns:
+        boolean
+
+*kotlin-extended-lsp-lsp_client.supports_method()*
+lsp_client.supports_method({method})
+    指定されたLSPメソッドがサポートされているか確認します。
+
+    Parameters:
+        {method} (string) LSPメソッド名
+
+    Returns:
+        boolean
+
+*kotlin-extended-lsp-lsp_client.request()*
+lsp_client.request({method}, {params}, {handler}, {opts})
+    LSPリクエストを送信します。リトライロジック付き。
+
+    Parameters:
+        {method}  (string)   LSPメソッド名
+        {params}  (table)    パラメータ
+        {handler} (function) コールバック関数
+        {opts}    (table|nil) オプション
+
+*kotlin-extended-lsp-lsp_client.get_capabilities()*
+lsp_client.get_capabilities()
+    サーバー機能を取得します。
+
+    Returns:
+        capabilities テーブル、または nil
+
+*kotlin-extended-lsp-lsp_client.get_capabilities_report()*
+lsp_client.get_capabilities_report()
+    フォーマットされた機能レポートを取得します。
+
+    Returns:
+        string - レポートテキスト
+
+------------------------------------------------------------------------------
+8.4 Decompile Module ~
+
+*kotlin-extended-lsp-decompile.is_compiled_file()*
+decompile.is_compiled_file({uri})
+    URIがコンパイル済みファイルかどうかを判定します。
+
+    Parameters:
+        {uri} (string) ファイルURI
+
+    Returns:
+        boolean
+
+*kotlin-extended-lsp-decompile.decompile_uri()*
+decompile.decompile_uri({uri}, {callback})
+    URIをデコンパイルします。
+
+    Parameters:
+        {uri}      (string)   ファイルURI
+        {callback} (function) コールバック function(err, content)
+
+*kotlin-extended-lsp-decompile.show_decompiled()*
+decompile.show_decompiled({uri}, {content}, {opts})
+    デコンパイル結果を表示します。
+
+    Parameters:
+        {uri}     (string)    ファイルURI
+        {content} (string)    デコンパイル結果
+        {opts}    (table|nil) オプション
+
+*kotlin-extended-lsp-decompile.clear_cache()*
+decompile.clear_cache()
+    デコンパイルキャッシュをクリアします。
+
+------------------------------------------------------------------------------
+8.5 Config Module ~
+
+*kotlin-extended-lsp-config.get()*
+config.get()
+    現在の設定を取得します。
+
+    Returns:
+        table - 設定テーブル
+
+*kotlin-extended-lsp-config.get_value()*
+config.get_value({path})
+    ドットパスで設定値を取得します。
+
+    Parameters:
+        {path} (string) 設定パス（例: 'log.level'）
+
+    Returns:
+        any - 設定値
+
+    Example:
+>lua
+        local level = config.get_value('log.level')
+        local cache_enabled = config.get_value('performance.cache_enabled')
+<
+
+*kotlin-extended-lsp-config.update()*
+config.update({path}, {value})
+    ランタイムで設定を更新します。
+
+    Parameters:
+        {path}  (string) 設定パス
+        {value} (any)    新しい値
+
+    Example:
+>lua
+        config.update('log.level', 'debug')
+<
+
+------------------------------------------------------------------------------
+8.6 Logger Module ~
+
+*kotlin-extended-lsp-logger.setup()*
+logger.setup({opts})
+    ロガーを初期化します。
+
+    Parameters:
+        {opts} (table|nil) ロガー設定
+
+*kotlin-extended-lsp-logger.trace()*
+logger.trace({msg}, {context})
+    TRACEレベルでログを記録します。
+
+*kotlin-extended-lsp-logger.debug()*
+logger.debug({msg}, {context})
+    DEBUGレベルでログを記録します。
+
+*kotlin-extended-lsp-logger.info()*
+logger.info({msg}, {context})
+    INFOレベルでログを記録します。
+
+*kotlin-extended-lsp-logger.warn()*
+logger.warn({msg}, {context})
+    WARNレベルでログを記録します。
+
+*kotlin-extended-lsp-logger.error()*
+logger.error({msg}, {context})
+    ERRORレベルでログを記録します。
+
+==============================================================================
+9. HEALTH CHECK                                *kotlin-extended-lsp-health*
+
+プラグインのヘルスチェックを実行するには:
+>
+    :checkhealth kotlin-extended-lsp
+<
+または
+>
+    :KotlinExtendedLspHealth
+<
+
+ヘルスチェックは以下を確認します:
+
+• プラグインの初期化状態
+• kotlin-lspの接続状態
+• サーバーバージョン情報
+• LSPメソッドのサポート状況
+  - textDocument/definition
+  - textDocument/implementation
+  - textDocument/typeDefinition
+  - textDocument/declaration
+• カスタムコマンドの可用性
+  - kotlin/jarClassContents
+• キャッシュ設定
+
+ヘルスチェックの結果に基づいて、適切な設定変更や
+トラブルシューティングを行うことができます。
+
+==============================================================================
+10. TROUBLESHOOTING                   *kotlin-extended-lsp-troubleshooting*
+
+------------------------------------------------------------------------------
+10.1 プラグインが機能しない ~
+
+症状: キーマップが動作しない、デコンパイルが実行されない
+
+解決方法:
+
+1. プラグインが初期化されているか確認
+>
+    :lua print(vim.inspect(require('kotlin-extended-lsp')._initialized))
+<
+   true と表示されるべきです。
+
+2. ヘルスチェックを実行
+>
+    :checkhealth kotlin-extended-lsp
+<
+
+3. kotlin-lspが正しくアタッチされているか確認
+>
+    :LspInfo
+<
+   kotlin_lsp が表示されるべきです。
+
+4. ログレベルをdebugに変更して詳細情報を取得
+>
+    :KotlinToggleLog debug
+<
+
+------------------------------------------------------------------------------
+10.2 デコンパイルが失敗する ~
+
+症状: JAR/classファイルへジャンプしてもデコンパイルされない
+
+解決方法:
+
+1. kotlin/jarClassContents コマンドがサポートされているか確認
+>
+    :KotlinLspCapabilities
+<
+
+2. JetBrains公式kotlin-lsp が正しくインストールされているか確認
+   brew install JetBrains/utils/kotlin-lsp
+
+3. キャッシュをクリアして再試行
+>
+    :KotlinClearCache
+<
+
+4. ログを確認
+>lua
+    :lua print(vim.fn.stdpath('cache') .. '/kotlin-extended-lsp.log')
+<
+   ログファイルのパスが表示されます（use_file = true の場合）。
+
+------------------------------------------------------------------------------
+10.3 パフォーマンスの問題 ~
+
+症状: デコンパイルが遅い、メモリ使用量が多い
+
+解決方法:
+
+1. キャッシュが有効になっているか確認
+>lua
+    require('kotlin-extended-lsp').get_config().get_value('performance.cache_enabled')
+<
+
+2. キャッシュTTLを調整
+>lua
+    require('kotlin-extended-lsp').setup({
+      performance = {
+        cache_ttl = 7200, -- 2時間
+      }
+    })
+<
+
+3. ファイルサイズ制限を設定
+>lua
+    require('kotlin-extended-lsp').setup({
+      performance = {
+        max_file_size = 512 * 1024, -- 512KB
+      }
+    })
+<
+
+4. 定期的にキャッシュをクリア
+>
+    :KotlinClearCache
+<
+
+------------------------------------------------------------------------------
+10.4 他のLSPとの競合 ~
+
+症状: 他の言語サーバーの動作に影響が出る
+
+解決方法:
+
+1. use_global_handlers を無効にする
+>lua
+    require('kotlin-extended-lsp').setup({
+      use_global_handlers = false,
+    })
+<
+
+2. カスタムキーマップを使用
+   |kotlin-extended-lsp-keymaps| のカスタムキーマップ例を参照。
+
+------------------------------------------------------------------------------
+10.5 フォールバック通知が多すぎる ~
+
+症状: 実装や型定義がない場合の通知が煩わしい
+
+解決方法:
+
+silent_fallbacks を有効にする:
+>lua
+    require('kotlin-extended-lsp').setup({
+      silent_fallbacks = true,
+    })
+<
+
+------------------------------------------------------------------------------
+10.6 よくある問題 ~
+
+Q: デコンパイル結果が編集できない
+A: これは意図的な動作です。デコンパイル結果は読み取り専用バッファとして
+   表示されます。
+
+Q: q で閉じても再度開かれる
+A: LRU バッファリストに残っている可能性があります。
+   完全に削除するには :bd! を使用してください。
+
+Q: kotlin-lsp が見つからない
+A: lspconfig で kotlin_lsp を正しく設定してください:
+>lua
+    require('lspconfig').kotlin_lsp.setup({})
+<
+   また、JetBrains公式kotlin-lspがインストールされているか確認してください:
+   brew install JetBrains/utils/kotlin-lsp
+
+Q: 設定変更が反映されない
+A: Neovimを再起動するか、:lua package.loaded['kotlin-extended-lsp'] = nil
+   を実行してからもう一度 setup() を呼び出してください。
+
+==============================================================================
+11. LICENSE AND CREDITS                       *kotlin-extended-lsp-license*
+
+License: MIT License
+
+Copyright (c) 2024
+
+This plugin integrates with:
+• JetBrains公式kotlin-lsp (プレアルファ段階)
+  https://github.com/Kotlin/kotlin-lsp
+  Install: brew install JetBrains/utils/kotlin-lsp
+
+• Neovim LSP client
+  https://neovim.io/doc/user/lsp.html
+
+Dependencies:
+• neovim/nvim-lspconfig
+  https://github.com/neovim/nvim-lspconfig
+
+Inspired by:
+• nvim-jdtls by mfussenegger
+  https://github.com/mfussenegger/nvim-jdtls
+
+Report issues:
+https://github.com/yourusername/kotlin-extended-lsp.nvim/issues
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

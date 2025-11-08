@@ -1,0 +1,23 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+
+complexity:
+  active: true
+  LongMethod:
+    threshold: 60
+  LongParameterList:
+    functionThreshold: 6
+
+style:
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  MagicNumber:
+    active: false
+
+formatting:
+  active: true
+  autoCorrect: true

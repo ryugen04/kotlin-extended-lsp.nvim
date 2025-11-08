@@ -1,0 +1,22 @@
+# Neovim
+*.log
+.DS_Store
+
+# Lua
+luac.out
+
+# Test artifacts
+*.test.lua
+
+# Coverage
+*.coverage
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
