@@ -1,7 +1,7 @@
 -- Tests for lsp_client module
 
-local lsp_client = require('kotlin-extended-lsp.lsp_client')
 local config = require('kotlin-extended-lsp.config')
+local lsp_client = require('kotlin-extended-lsp.lsp_client')
 
 describe('lsp_client', function()
   local mock_client
@@ -28,21 +28,31 @@ describe('lsp_client', function()
           commands = {
             'kotlin/jarClassContents',
             'kotlin/buildOutputLocation',
-          }
+          },
         },
       },
       supports_method = function(method)
         local caps = mock_client.server_capabilities
-        if method == 'textDocument/definition' then return caps.definitionProvider
-        elseif method == 'textDocument/implementation' then return caps.implementationProvider
-        elseif method == 'textDocument/typeDefinition' then return caps.typeDefinitionProvider
-        elseif method == 'textDocument/declaration' then return caps.declarationProvider
-        elseif method == 'textDocument/references' then return caps.referencesProvider
-        elseif method == 'textDocument/hover' then return caps.hoverProvider
-        elseif method == 'textDocument/rename' then return caps.renameProvider
-        elseif method == 'textDocument/codeAction' then return caps.codeActionProvider
-        elseif method == 'textDocument/formatting' then return caps.documentFormattingProvider
-        elseif method == 'textDocument/signatureHelp' then return caps.signatureHelpProvider
+        if method == 'textDocument/definition' then
+          return caps.definitionProvider
+        elseif method == 'textDocument/implementation' then
+          return caps.implementationProvider
+        elseif method == 'textDocument/typeDefinition' then
+          return caps.typeDefinitionProvider
+        elseif method == 'textDocument/declaration' then
+          return caps.declarationProvider
+        elseif method == 'textDocument/references' then
+          return caps.referencesProvider
+        elseif method == 'textDocument/hover' then
+          return caps.hoverProvider
+        elseif method == 'textDocument/rename' then
+          return caps.renameProvider
+        elseif method == 'textDocument/codeAction' then
+          return caps.codeActionProvider
+        elseif method == 'textDocument/formatting' then
+          return caps.documentFormattingProvider
+        elseif method == 'textDocument/signatureHelp' then
+          return caps.signatureHelpProvider
         end
         return false
       end,
@@ -92,7 +102,9 @@ describe('lsp_client', function()
     end)
 
     it('should return nil when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
       local client = lsp_client.get_kotlin_client()
       assert.is_nil(client)
     end)
@@ -105,13 +117,17 @@ describe('lsp_client', function()
     end)
 
     it('should return false when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
       local is_attached = lsp_client.is_attached()
       assert.is_false(is_attached)
     end)
 
     it('should return false when buffer not attached', function()
-      vim.lsp.get_buffers_by_client_id = function() return {} end
+      vim.lsp.get_buffers_by_client_id = function()
+        return {}
+      end
       local is_attached = lsp_client.is_attached()
       assert.is_false(is_attached)
     end)
@@ -131,7 +147,9 @@ describe('lsp_client', function()
     end)
 
     it('should return false when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
       assert.is_false(lsp_client.supports_method('textDocument/definition'))
     end)
   end)
@@ -153,7 +171,9 @@ describe('lsp_client', function()
     end)
 
     it('should call handler with error when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
 
       local error_received = nil
       lsp_client.request('textDocument/definition', {}, function(err, result)
@@ -188,7 +208,9 @@ describe('lsp_client', function()
     end)
 
     it('should return nil when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
       local caps = lsp_client.get_capabilities()
       assert.is_nil(caps)
     end)
@@ -204,7 +226,9 @@ describe('lsp_client', function()
     end)
 
     it('should return error message when client not found', function()
-      vim.lsp.get_clients = function() return {} end
+      vim.lsp.get_clients = function()
+        return {}
+      end
       local report = lsp_client.get_capabilities_report()
       assert.matches('not found', report)
     end)

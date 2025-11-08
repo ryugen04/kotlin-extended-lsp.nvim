@@ -223,10 +223,18 @@ describe('kotlin-extended-lsp integration', function()
       -- Mock health module
       local health_reports = {}
       local mock_health = {
-        start = function(name) table.insert(health_reports, { type = 'start', name = name }) end,
-        ok = function(msg) table.insert(health_reports, { type = 'ok', msg = msg }) end,
-        warn = function(msg) table.insert(health_reports, { type = 'warn', msg = msg }) end,
-        error = function(msg) table.insert(health_reports, { type = 'error', msg = msg }) end,
+        start = function(name)
+          table.insert(health_reports, { type = 'start', name = name })
+        end,
+        ok = function(msg)
+          table.insert(health_reports, { type = 'ok', msg = msg })
+        end,
+        warn = function(msg)
+          table.insert(health_reports, { type = 'warn', msg = msg })
+        end,
+        error = function(msg)
+          table.insert(health_reports, { type = 'error', msg = msg })
+        end,
       }
 
       _G.vim_health_backup = vim.health
@@ -254,7 +262,7 @@ describe('kotlin-extended-lsp integration', function()
     it('should reject invalid log level', function()
       assert.has_error(function()
         M.setup({
-          log = { level = 'invalid' }
+          log = { level = 'invalid' },
         })
       end)
     end)
@@ -262,7 +270,7 @@ describe('kotlin-extended-lsp integration', function()
     it('should reject out of range timeout', function()
       assert.has_error(function()
         M.setup({
-          lsp = { timeout_ms = 50 } -- Below minimum
+          lsp = { timeout_ms = 50 }, -- Below minimum
         })
       end)
     end)
@@ -270,7 +278,7 @@ describe('kotlin-extended-lsp integration', function()
     it('should reject out of range cache entries', function()
       assert.has_error(function()
         M.setup({
-          performance = { max_cache_entries = 2000 } -- Above maximum
+          performance = { max_cache_entries = 2000 }, -- Above maximum
         })
       end)
     end)

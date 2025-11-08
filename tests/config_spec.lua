@@ -34,7 +34,7 @@ describe('config', function()
         config.setup({
           log = {
             level = 'invalid', -- Not in enum
-          }
+          },
         })
       end)
     end)
@@ -44,7 +44,7 @@ describe('config', function()
         config.setup({
           lsp = {
             timeout_ms = 50, -- Below minimum
-          }
+          },
         })
       end)
     end)

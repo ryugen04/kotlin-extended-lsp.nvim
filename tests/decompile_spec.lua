@@ -1,7 +1,7 @@
 -- Tests for decompile module
 
-local decompile = require('kotlin-extended-lsp.decompile')
 local config = require('kotlin-extended-lsp.config')
+local decompile = require('kotlin-extended-lsp.decompile')
 
 describe('decompile', function()
   before_each(function()
@@ -18,8 +18,12 @@ describe('decompile', function()
 
   describe('is_compiled_file', function()
     it('should detect JAR file URIs', function()
-      assert.is_true(decompile.is_compiled_file('jar:file:///path/to/lib.jar!/com/example/Class.class'))
-      assert.is_true(decompile.is_compiled_file('jar:file:///usr/lib/kotlin.jar!/kotlin/String.class'))
+      assert.is_true(
+        decompile.is_compiled_file('jar:file:///path/to/lib.jar!/com/example/Class.class')
+      )
+      assert.is_true(
+        decompile.is_compiled_file('jar:file:///usr/lib/kotlin.jar!/kotlin/String.class')
+      )
     end)
 
     it('should detect class file URIs', function()
@@ -115,7 +119,7 @@ describe('decompile', function()
       config.setup({
         performance = {
           max_file_size = 100, -- Very small limit
-        }
+        },
       })
 
       local uri = 'jar:file:///test.jar!/Test.class'
@@ -131,7 +135,7 @@ describe('decompile', function()
       config.setup({
         decompile = {
           syntax_highlight = true,
-        }
+        },
       })
 
       local uri = 'jar:file:///test.jar!/Test.class'

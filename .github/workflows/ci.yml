@@ -80,8 +80,7 @@ jobs:
       - name: Run Tests
         run: |
           nvim --version
-          nvim --headless --noplugin -u tests/minimal_init.lua \
-            -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+          make test
 
       - name: Upload test results (if failed)
         if: failure()
