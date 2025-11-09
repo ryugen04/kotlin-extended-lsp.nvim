@@ -24,3 +24,7 @@ luacov.*
 
 # OS
 Thumbs.db
+
+# Build artifacts
+luarocks-*/build/
+luarocks-*/config.unix
