@@ -217,7 +217,6 @@ end
 
 -- textDocument/hover (ホバードキュメント)
 function M.hover(_opts)
-
   if not lsp_client.is_attached() then
     logger.error('kotlin-lsp not attached to current buffer')
     return
@@ -238,7 +237,6 @@ end
 
 -- textDocument/signatureHelp (シグネチャヘルプ)
 function M.signature_help(_opts)
-
   if not lsp_client.is_attached() then
     logger.error('kotlin-lsp not attached to current buffer')
     return
