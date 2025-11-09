@@ -89,9 +89,9 @@ describe('logger', function()
       local content = table.concat(vim.fn.readfile(test_log_file), '\n')
 
       -- Should not contain trace, debug, info
-      assert.is_false(content:match('TRACE'))
-      assert.is_false(content:match('DEBUG'))
-      assert.is_false(content:match('INFO'))
+      assert.is_nil(content:match('TRACE'))
+      assert.is_nil(content:match('DEBUG'))
+      assert.is_nil(content:match('INFO'))
 
       -- Should contain warn and error
       assert.matches('WARN.*warn message', content)
@@ -137,8 +137,8 @@ describe('logger', function()
       local content = table.concat(vim.fn.readfile(test_log_file), '\n')
 
       -- Should only contain session markers
-      assert.is_false(content:match('trace message'))
-      assert.is_false(content:match('error message'))
+      assert.is_nil(content:match('trace message'))
+      assert.is_nil(content:match('error message'))
     end)
   end)
 

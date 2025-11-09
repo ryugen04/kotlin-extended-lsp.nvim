@@ -158,16 +158,20 @@ describe('lsp_client', function()
     it('should make LSP request successfully', function()
       local callback_called = false
       local result_data = nil
+      local error_data = nil
 
       lsp_client.request('textDocument/definition', {}, function(err, result)
         callback_called = true
+        error_data = err
         result_data = result
       end)
 
       vim.wait(50)
 
       assert.is_true(callback_called)
-      assert.is_nil(result_data) -- Mock returns nil error, empty result
+      assert.is_nil(error_data) -- Mock returns nil error
+      assert.is_not_nil(result_data) -- Mock returns { uri = 'test' }
+      assert.equals('test', result_data.uri)
     end)
 
     it('should call handler with error when client not found', function()
