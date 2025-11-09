@@ -17,6 +17,10 @@ kotlin-extended-lsp.nvim seamlessly integrates with the official JetBrains kotli
 - Automatic decompilation when jumping to definitions in JAR files and class files
 - Enhanced standard LSP operations (go-to-definition, implementation, type definition, declaration)
 - Cached decompilation results for improved performance
+- **Integrated Kotlin linters (detekt, ktlint)**
+- **Integrated Kotlin formatters (ktlint, ktfmt)**
+- **Editor settings and .editorconfig support**
+- **Automatic code formatting and linting on save**
 - Customizable keymaps and UI options
 - Performance tuning capabilities
 - Comprehensive logging and health check functionality
@@ -32,11 +36,20 @@ and view automatically decompiled content
 
 ## Requirements
 
+### Required
 - Neovim 0.8 or higher
 - [Official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) installed and configured
   - Install with: `brew install JetBrains/utils/kotlin-lsp`
   - Currently in pre-alpha stage
 - [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (recommended)
+
+### Optional (for linting and formatting)
+- [detekt](https://github.com/detekt/detekt) - Static code analysis
+  - Install: `brew install detekt` or use Gradle plugin
+- [ktlint](https://pinterest.github.io/ktlint/) - Kotlin linter and formatter
+  - Install: `brew install ktlint` or use Gradle plugin
+- [ktfmt](https://github.com/facebook/ktfmt) - Kotlin code formatter
+  - Install: Download from releases or use Gradle plugin
 
 ## Installation
 
@@ -187,6 +200,61 @@ require('kotlin-extended-lsp').setup({
       error = '',                  -- Error sign
     },
   },
+
+  -- Linting settings
+  linting = {
+    enabled = true,                 -- Enable linting
+    on_save = true,                 -- Lint on save
+    on_type = false,                -- Lint on type (debounced)
+    debounce_ms = 500,              -- Debounce delay for on_type
+    tools = {
+      detekt = {
+        enabled = true,             -- Enable detekt
+        cmd = nil,                  -- Auto-detect or specify path
+        config_file = nil,          -- Auto-detect detekt.yml or specify path
+        baseline_file = nil,        -- Baseline file path
+        build_upon_default_config = false,
+        parallel = true,            -- Run in parallel
+      },
+      ktlint = {
+        enabled = true,             -- Enable ktlint
+        cmd = nil,                  -- Auto-detect or specify path
+        config_file = nil,          -- .editorconfig auto-detected
+        android = false,            -- Use Android style
+        experimental = false,       -- Use experimental rules
+      },
+    },
+  },
+
+  -- Formatting settings
+  formatting = {
+    enabled = true,                 -- Enable formatting
+    on_save = false,                -- Format on save
+    prefer_formatter = 'ktlint',    -- 'ktlint', 'ktfmt', 'lsp', 'none'
+    tools = {
+      ktlint = {
+        enabled = true,             -- Enable ktlint formatter
+        cmd = nil,                  -- Auto-detect or specify path
+        config_file = nil,          -- .editorconfig auto-detected
+        android = false,            -- Use Android style
+      },
+      ktfmt = {
+        enabled = true,             -- Enable ktfmt formatter
+        cmd = nil,                  -- Auto-detect or specify path
+        style = 'google',           -- 'google', 'kotlinlang', 'dropbox'
+        max_width = 100,            -- Maximum line width
+      },
+    },
+  },
+
+  -- Editor settings
+  editor = {
+    editorconfig = true,            -- Auto-detect and apply .editorconfig
+    organize_imports_on_save = true,-- Organize imports on save
+    trim_trailing_whitespace = true,-- Trim trailing whitespace on save
+    insert_final_newline = true,    -- Insert final newline on save
+    max_line_length = 120,          -- Visual guide for max line length
+  },
 })
 ```
 
@@ -237,6 +305,40 @@ Display the current configuration.
 
 ```vim
 :KotlinShowConfig
+```
+
+### `:KotlinLint`
+
+Run linters on the current buffer.
+
+```vim
+:KotlinLint
+```
+
+### `:KotlinToggleLinting`
+
+Toggle linting on/off.
+
+```vim
+:KotlinToggleLinting
+```
+
+### `:KotlinFormat [formatter]`
+
+Format the current buffer. Optionally specify a formatter (`ktlint`, `ktfmt`, or `lsp`).
+
+```vim
+:KotlinFormat
+:KotlinFormat ktlint
+:KotlinFormat ktfmt
+```
+
+### `:KotlinOrganizeImports`
+
+Organize imports in the current buffer using LSP.
+
+```vim
+:KotlinOrganizeImports
 ```
 
 ### `:KotlinExtendedLspHealth`

@@ -85,6 +85,61 @@ M.defaults = {
       error = '',
     },
   },
+
+  -- Linting settings
+  linting = {
+    enabled = true,
+    on_save = true,
+    on_type = false,
+    debounce_ms = 500,
+    tools = {
+      detekt = {
+        enabled = true,
+        cmd = nil, -- auto-detect or specify path
+        config_file = nil, -- auto-detect detekt.yml or specify path
+        baseline_file = nil,
+        build_upon_default_config = false,
+        parallel = true,
+      },
+      ktlint = {
+        enabled = true,
+        cmd = nil, -- auto-detect or specify path
+        config_file = nil, -- .editorconfig auto-detected
+        android = false,
+        experimental = false,
+      },
+    },
+  },
+
+  -- Formatting settings
+  formatting = {
+    enabled = true,
+    on_save = false,
+    prefer_formatter = 'ktlint', -- 'ktlint', 'ktfmt', 'lsp', 'none'
+    tools = {
+      ktlint = {
+        enabled = true,
+        cmd = nil,
+        config_file = nil,
+        android = false,
+      },
+      ktfmt = {
+        enabled = true,
+        cmd = nil,
+        style = 'google', -- 'google', 'kotlinlang', 'dropbox'
+        max_width = 100,
+      },
+    },
+  },
+
+  -- Editor settings
+  editor = {
+    editorconfig = true, -- auto-detect and apply .editorconfig
+    organize_imports_on_save = true,
+    trim_trailing_whitespace = true,
+    insert_final_newline = true,
+    max_line_length = 120, -- visual guide
+  },
 }
 
 -- Current configuration
@@ -182,6 +237,85 @@ local schema = {
           error = { type = 'string' },
         },
       },
+    },
+  },
+
+  linting = {
+    type = 'table',
+    fields = {
+      enabled = { type = 'boolean' },
+      on_save = { type = 'boolean' },
+      on_type = { type = 'boolean' },
+      debounce_ms = { type = 'number', min = 0 },
+      tools = {
+        type = 'table',
+        fields = {
+          detekt = {
+            type = 'table',
+            fields = {
+              enabled = { type = 'boolean' },
+              cmd = { type = 'string', optional = true },
+              config_file = { type = 'string', optional = true },
+              baseline_file = { type = 'string', optional = true },
+              build_upon_default_config = { type = 'boolean' },
+              parallel = { type = 'boolean' },
+            },
+          },
+          ktlint = {
+            type = 'table',
+            fields = {
+              enabled = { type = 'boolean' },
+              cmd = { type = 'string', optional = true },
+              config_file = { type = 'string', optional = true },
+              android = { type = 'boolean' },
+              experimental = { type = 'boolean' },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  formatting = {
+    type = 'table',
+    fields = {
+      enabled = { type = 'boolean' },
+      on_save = { type = 'boolean' },
+      prefer_formatter = { type = 'string', enum = { 'ktlint', 'ktfmt', 'lsp', 'none' } },
+      tools = {
+        type = 'table',
+        fields = {
+          ktlint = {
+            type = 'table',
+            fields = {
+              enabled = { type = 'boolean' },
+              cmd = { type = 'string', optional = true },
+              config_file = { type = 'string', optional = true },
+              android = { type = 'boolean' },
+            },
+          },
+          ktfmt = {
+            type = 'table',
+            fields = {
+              enabled = { type = 'boolean' },
+              cmd = { type = 'string', optional = true },
+              style = { type = 'string', enum = { 'google', 'kotlinlang', 'dropbox' } },
+              max_width = { type = 'number', min = 40 },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  editor = {
+    type = 'table',
+    fields = {
+      editorconfig = { type = 'boolean' },
+      organize_imports_on_save = { type = 'boolean' },
+      trim_trailing_whitespace = { type = 'boolean' },
+      insert_final_newline = { type = 'boolean' },
+      max_line_length = { type = 'number', min = 40 },
     },
   },
 }

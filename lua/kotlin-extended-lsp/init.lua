@@ -70,8 +70,33 @@ function M.setup(user_config)
     logger.debug('Initializing decompile cache')
   end
 
+  -- Register linters and formatters
+  M.register_tools()
+
   M._initialized = true
   logger.info('kotlin-extended-lsp.nvim initialized successfully')
+end
+
+-- Register linters and formatters
+function M.register_tools()
+  local logger = load_module('logger')
+
+  -- Register linters
+  local linter = load_module('linter')
+  local detekt = load_module('tools.detekt')
+  local ktlint = load_module('tools.ktlint')
+
+  linter.register('detekt', detekt)
+  linter.register('ktlint', ktlint)
+  logger.debug('Registered linters')
+
+  -- Register formatters
+  local formatter = load_module('formatter')
+  local ktfmt = load_module('tools.ktfmt')
+
+  formatter.register('ktlint', ktlint)
+  formatter.register('ktfmt', ktfmt)
+  logger.debug('Registered formatters')
 end
 
 -- On attach handler
@@ -101,6 +126,22 @@ function M.on_attach(client, bufnr)
     local handlers = load_module('handlers')
     handlers.register_global_handlers()
   end
+
+  -- Setup linting
+  if config.get_value('linting.enabled') then
+    local linter = load_module('linter')
+    linter.setup_buffer(bufnr)
+  end
+
+  -- Setup formatting
+  if config.get_value('formatting.enabled') then
+    local formatter = load_module('formatter')
+    formatter.setup_buffer(bufnr)
+  end
+
+  -- Setup editor settings
+  local editor = load_module('editor')
+  editor.setup_buffer(bufnr)
 
   logger.debug('Attachment complete', { buffer = bufnr })
 end
@@ -329,6 +370,64 @@ function M.setup_commands()
     print(vim.inspect(config.get()))
   end, { desc = 'Show current configuration' })
 
+  -- Linting commands
+  vim.api.nvim_create_user_command('KotlinLint', function()
+    local linter = load_module('linter')
+    linter.lint(vim.api.nvim_get_current_buf(), function(err, diagnostics)
+      if err then
+        vim.notify('Linting failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+      else
+        vim.notify(
+          string.format('Linting complete: %d issues found', #diagnostics),
+          vim.log.levels.INFO,
+          { title = 'kotlin-extended-lsp' }
+        )
+      end
+    end)
+  end, { desc = 'Lint current buffer' })
+
+  vim.api.nvim_create_user_command('KotlinToggleLinting', function()
+    local config = load_module('config')
+    local current = config.get_value('linting.enabled')
+    config.update('linting.enabled', not current)
+    vim.notify(
+      string.format('Linting %s', not current and 'enabled' or 'disabled'),
+      vim.log.levels.INFO,
+      { title = 'kotlin-extended-lsp' }
+    )
+  end, { desc = 'Toggle linting on/off' })
+
+  -- Formatting commands
+  vim.api.nvim_create_user_command('KotlinFormat', function(opts)
+    local formatter = load_module('formatter')
+    local tool = opts.args ~= '' and opts.args or nil
+    formatter.format(vim.api.nvim_get_current_buf(), tool, function(err)
+      if err then
+        vim.notify('Formatting failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+      else
+        vim.notify('Formatting complete', vim.log.levels.INFO, { title = 'kotlin-extended-lsp' })
+      end
+    end)
+  end, {
+    desc = 'Format current buffer',
+    nargs = '?',
+    complete = function()
+      return { 'ktlint', 'ktfmt', 'lsp' }
+    end,
+  })
+
+  -- Editor commands
+  vim.api.nvim_create_user_command('KotlinOrganizeImports', function()
+    local editor = load_module('editor')
+    editor.organize_imports(vim.api.nvim_get_current_buf(), function(err)
+      if err then
+        vim.notify('Organize imports failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+      else
+        vim.notify('Imports organized', vim.log.levels.INFO, { title = 'kotlin-extended-lsp' })
+      end
+    end)
+  end, { desc = 'Organize imports' })
+
   logger.debug('User commands registered')
 end
 
@@ -382,6 +481,21 @@ end
 -- Get logger
 function M.get_logger()
   return load_module('logger')
+end
+
+-- Get linter
+function M.get_linter()
+  return load_module('linter')
+end
+
+-- Get formatter
+function M.get_formatter()
+  return load_module('formatter')
+end
+
+-- Get editor
+function M.get_editor()
+  return load_module('editor')
 end
 
 -- Health check
