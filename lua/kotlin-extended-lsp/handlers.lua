@@ -216,8 +216,7 @@ function M.references(opts)
 end
 
 -- textDocument/hover (ホバードキュメント)
-function M.hover(opts)
-  opts = opts or {}
+function M.hover(_opts)
 
   if not lsp_client.is_attached() then
     logger.error('kotlin-lsp not attached to current buffer')
@@ -238,8 +237,7 @@ function M.hover(opts)
 end
 
 -- textDocument/signatureHelp (シグネチャヘルプ)
-function M.signature_help(opts)
-  opts = opts or {}
+function M.signature_help(_opts)
 
   if not lsp_client.is_attached() then
     logger.error('kotlin-lsp not attached to current buffer')

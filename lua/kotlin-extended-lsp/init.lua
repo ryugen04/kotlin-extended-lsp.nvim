@@ -65,7 +65,7 @@ function M.setup(user_config)
   M.setup_autocommands()
 
   -- Initialize decompile cache
-  local decompile = load_module('decompile')
+  local _ = load_module('decompile')
   if config.get_value('performance.cache_enabled') then
     logger.debug('Initializing decompile cache')
   end

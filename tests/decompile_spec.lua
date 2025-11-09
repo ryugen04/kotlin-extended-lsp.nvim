@@ -155,24 +155,43 @@ describe('decompile', function()
       local content2 = 'second content'
 
       local bufnr1, _ = decompile.show_decompiled(uri, content1, { silent = true, no_focus = true })
+      assert.is_not_nil(bufnr1)
+
+      -- Wait a bit to ensure buffer is fully created
+      vim.wait(10)
+
       local bufnr2, _ = decompile.show_decompiled(uri, content2, { silent = true, no_focus = true })
+      assert.is_not_nil(bufnr2)
 
       -- Should reuse same buffer
       assert.equals(bufnr1, bufnr2)
 
       -- Clean up
-      vim.api.nvim_buf_delete(bufnr1, { force = true })
+      if bufnr1 then
+        vim.api.nvim_buf_delete(bufnr1, { force = true })
+      end
     end)
   end)
 
   describe('decompile_uri with mocked LSP', function()
     local original_lsp_client
+    local original_decompile
 
     before_each(function()
       original_lsp_client = package.loaded['kotlin-extended-lsp.lsp_client']
+      original_decompile = package.loaded['kotlin-extended-lsp.decompile']
 
       -- Mock LSP client
       package.loaded['kotlin-extended-lsp.lsp_client'] = {
+        get_kotlin_client = function()
+          return { id = 1, name = 'kotlin_lsp' }
+        end,
+        is_attached = function()
+          return true
+        end,
+        supports_method = function()
+          return true
+        end,
         supports_custom_command = function(cmd)
           return cmd == 'kotlin/jarClassContents'
         end,
@@ -185,10 +204,16 @@ describe('decompile', function()
           end
         end,
       }
+
+      -- Reload decompile module to use mocked lsp_client
+      package.loaded['kotlin-extended-lsp.decompile'] = nil
+      decompile = require('kotlin-extended-lsp.decompile')
     end)
 
     after_each(function()
       package.loaded['kotlin-extended-lsp.lsp_client'] = original_lsp_client
+      package.loaded['kotlin-extended-lsp.decompile'] = original_decompile
+      decompile = require('kotlin-extended-lsp.decompile')
     end)
 
     it('should reject non-compiled files', function()

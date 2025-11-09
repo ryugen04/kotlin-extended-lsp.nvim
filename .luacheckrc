@@ -8,9 +8,10 @@ max_line_length = false
 ignore = {
   "212", -- Unused argument
   "631", -- Line is too long (we handle this with formatters)
+  "122", -- Setting read-only field of global variable
 }
 
--- Read-only globals
+-- Read-only globals (but allow setting fields)
 read_globals = {
   "vim",
 }

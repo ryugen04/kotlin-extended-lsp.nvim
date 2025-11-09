@@ -69,7 +69,7 @@ function M.request(method, params, handler, opts)
   local function make_request(attempt)
     local timed_out = false
     local timeout_timer = nil
-    local request_id = nil
+    local request_id = nil -- luacheck: ignore 311
 
     local request_success, request_id_or_err = pcall(function()
       return client.request(method, params, function(err, result, ctx, lsp_config)
