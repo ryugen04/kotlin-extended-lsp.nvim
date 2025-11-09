@@ -4,7 +4,6 @@
 local M = {}
 
 local config = require('kotlin-extended-lsp.config')
-local job = require('kotlin-extended-lsp.utils.job')
 local logger = require('kotlin-extended-lsp.logger')
 
 --- Find and parse .editorconfig file
@@ -32,7 +31,7 @@ local function parse_editorconfig(filepath, target_file)
   local settings = {}
   local lines = vim.fn.readfile(filepath)
   local current_section = nil
-  local target_basename = vim.fn.fnamemodify(target_file, ':t')
+  local _ = target_file -- Unused, but kept for API compatibility
 
   for _, line in ipairs(lines) do
     -- Skip comments and empty lines
@@ -90,12 +89,10 @@ local function apply_editorconfig(bufnr, settings)
     end
   end
 
-  -- Trim trailing whitespace
-  if settings.trim_trailing_whitespace == 'true' then
-    -- Will be handled by on_save action
-  end
+  -- Note: trim_trailing_whitespace and insert_final_newline
+  -- are handled by on_save actions, not here
 
-  -- Insert final newline
+  -- Insert final newline (buffer option)
   if settings.insert_final_newline == 'true' then
     vim.api.nvim_buf_set_option(bufnr, 'fixendofline', true)
     vim.api.nvim_buf_set_option(bufnr, 'endofline', true)

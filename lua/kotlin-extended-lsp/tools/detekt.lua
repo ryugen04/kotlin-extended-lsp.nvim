@@ -185,7 +185,7 @@ function M.lint(bufnr, filepath, callback)
     end
 
     -- Parse output
-    local diagnostics = {}
+    local diagnostics
     if stdout:match('<checkstyle') then
       -- XML format
       diagnostics = parse_detekt_xml(stdout)
