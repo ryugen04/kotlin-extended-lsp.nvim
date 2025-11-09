@@ -8,15 +8,6 @@ local lsp_client = require('kotlin-extended-lsp.lsp_client')
 
 local M = {}
 
--- Initialize cache with configuration
-local function init_cache()
-  local perf_config = config.get_value('performance')
-  cache.setup({
-    max_size = perf_config.max_cache_entries or 50,
-    ttl = perf_config.cache_ttl or 3600,
-  })
-end
-
 -- Check if URI is a compiled file
 function M.is_compiled_file(uri)
   if not uri or type(uri) ~= 'string' then
@@ -93,16 +84,13 @@ local function create_decompiled_buffer(uri, content)
     return nil, err_msg
   end
 
-  -- Search for existing buffer（競合状態対策でpcall使用）
+  -- Search for existing buffer using bufnr() for reliable lookup
   local existing_bufnr = nil
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    local ok, valid = pcall(vim.api.nvim_buf_is_valid, bufnr)
+  local bufnr_result = vim.fn.bufnr(uri)
+  if bufnr_result ~= -1 then
+    local ok, valid = pcall(vim.api.nvim_buf_is_valid, bufnr_result)
     if ok and valid then
-      local ok2, buf_name = pcall(vim.api.nvim_buf_get_name, bufnr)
-      if ok2 and buf_name == uri then
-        existing_bufnr = bufnr
-        break
-      end
+      existing_bufnr = bufnr_result
     end
   end
 
@@ -126,9 +114,28 @@ local function create_decompiled_buffer(uri, content)
     end
     local ok, err = pcall(vim.api.nvim_buf_set_name, bufnr, uri)
     if not ok then
-      logger.error('Failed to set buffer name', { error = err, uri = uri })
-      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-      return nil, err
+      -- If buffer name already exists, search for it using bufnr()
+      local buffer_found = false
+      if err and err:match('E95') then
+        local existing_buf = vim.fn.bufnr(uri)
+        if existing_buf ~= -1 then
+          local buf_ok, buf_valid = pcall(vim.api.nvim_buf_is_valid, existing_buf)
+          if buf_ok and buf_valid then
+            pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+            bufnr = existing_buf
+            pcall(function()
+              vim.bo[bufnr].modifiable = true
+            end)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
+            buffer_found = true
+          end
+        end
+      end
+      if not buffer_found then
+        logger.error('Failed to set buffer name', { error = err, uri = uri })
+        pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+        return nil, err
+      end
     end
   end
 
@@ -144,7 +151,6 @@ local function create_decompiled_buffer(uri, content)
   end
 
   -- Set buffer options（Neovim 0.10対応）
-  local show_line_numbers = config.get_value('decompile.show_line_numbers')
   local syntax_highlight = config.get_value('decompile.syntax_highlight')
 
   vim.bo[bufnr].buftype = 'nofile'

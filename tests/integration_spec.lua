@@ -110,12 +110,17 @@ describe('kotlin-extended-lsp integration', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       M._attached_buffers[bufnr] = true
 
-      vim.api.nvim_buf_delete(bufnr, { force = true })
+      -- Trigger autocmd callback directly
+      vim.api.nvim_exec_autocmds('BufDelete', {
+        buffer = bufnr,
+        group = 'KotlinExtendedLspAuto',
+      })
 
-      -- Give autocmd time to process
-      vim.wait(10)
-
+      -- The buffer should be removed from attached list
       assert.is_nil(M._attached_buffers[bufnr])
+
+      -- Clean up
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
     end)
   end)
 

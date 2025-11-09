@@ -123,6 +123,8 @@ jobs:
 
       - name: Generate changelog
         id: changelog
+        env:
+          REPO: ${{ github.repository }}
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
 
@@ -137,17 +139,16 @@ jobs:
             COMMITS=$(git log "$PREVIOUS_TAG..$VERSION" --pretty=format:"- %s (%h)" --no-merges)
           fi
 
-          # Create changelog
-          CHANGELOG="## What's Changed
-
-$COMMITS
-
-**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}"
-
           # Save to output (handle multiline)
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "changelog<<EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "**Full Changelog**: https://github.com/${REPO}/compare/${PREVIOUS_TAG}...${VERSION}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   release:
     name: Create GitHub Release
