@@ -4,8 +4,8 @@
 local M = {}
 
 local config = require('kotlin-extended-lsp.config')
-local logger = require('kotlin-extended-lsp.logger')
 local job = require('kotlin-extended-lsp.utils.job')
+local logger = require('kotlin-extended-lsp.logger')
 
 --- Find and parse .editorconfig file
 --- @param filepath string File path
@@ -36,27 +36,22 @@ local function parse_editorconfig(filepath, target_file)
 
   for _, line in ipairs(lines) do
     -- Skip comments and empty lines
-    if line:match('^%s*[#;]') or line:match('^%s*$') then
-      goto continue
-    end
-
-    -- Section header
-    local section = line:match('^%[(.+)%]')
-    if section then
-      current_section = section
-      goto continue
-    end
-
-    -- Key-value pair
-    local key, value = line:match('^%s*([^=]+)%s*=%s*(.+)%s*$')
-    if key and value then
-      -- Check if current section matches target file
-      if current_section and current_section:match('%*%.kt') then
-        settings[key:lower()] = value:lower()
+    if not (line:match('^%s*[#;]') or line:match('^%s*$')) then
+      -- Section header
+      local section = line:match('^%[(.+)%]')
+      if section then
+        current_section = section
+      else
+        -- Key-value pair
+        local key, value = line:match('^%s*([^=]+)%s*=%s*(.+)%s*$')
+        if key and value then
+          -- Check if current section matches target file
+          if current_section and current_section:match('%*%.kt') then
+            settings[key:lower()] = value:lower()
+          end
+        end
       end
     end
-
-    ::continue::
   end
 
   return settings

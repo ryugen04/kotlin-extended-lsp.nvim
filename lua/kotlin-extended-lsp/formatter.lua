@@ -220,7 +220,8 @@ function M.setup_buffer(bufnr)
     return
   end
 
-  local group = vim.api.nvim_create_augroup('KotlinExtendedLspFormatter_' .. bufnr, { clear = true })
+  local group =
+    vim.api.nvim_create_augroup('KotlinExtendedLspFormatter_' .. bufnr, { clear = true })
 
   -- Format on save
   if cfg.on_save then

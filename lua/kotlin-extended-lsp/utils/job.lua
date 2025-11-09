@@ -48,7 +48,12 @@ function M.run(cmd, args, opts, callback)
       local stderr_str = table.concat(stderr_chunks, '')
 
       if code ~= 0 then
-        callback(stderr_str ~= '' and stderr_str or ('Process exited with code ' .. code), stdout_str, stderr_str, code)
+        callback(
+          stderr_str ~= '' and stderr_str or ('Process exited with code ' .. code),
+          stdout_str,
+          stderr_str,
+          code
+        )
       else
         callback(nil, stdout_str, stderr_str, code)
       end
@@ -167,7 +172,10 @@ function M.get_project_root(bufnr)
   local dir = vim.fn.fnamemodify(filepath, ':h')
   while dir ~= '/' do
     for _, marker in ipairs(markers) do
-      if vim.fn.isdirectory(dir .. '/' .. marker) == 1 or vim.fn.filereadable(dir .. '/' .. marker) == 1 then
+      if
+        vim.fn.isdirectory(dir .. '/' .. marker) == 1
+        or vim.fn.filereadable(dir .. '/' .. marker) == 1
+      then
         return dir
       end
     end

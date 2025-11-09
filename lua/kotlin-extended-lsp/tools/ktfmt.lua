@@ -4,8 +4,8 @@
 local M = {}
 
 local config = require('kotlin-extended-lsp.config')
-local logger = require('kotlin-extended-lsp.logger')
 local job = require('kotlin-extended-lsp.utils.job')
+local logger = require('kotlin-extended-lsp.logger')
 
 --- Find ktfmt executable
 --- @return string|nil

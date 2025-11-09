@@ -375,7 +375,11 @@ function M.setup_commands()
     local linter = load_module('linter')
     linter.lint(vim.api.nvim_get_current_buf(), function(err, diagnostics)
       if err then
-        vim.notify('Linting failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+        vim.notify(
+          'Linting failed: ' .. err,
+          vim.log.levels.ERROR,
+          { title = 'kotlin-extended-lsp' }
+        )
       else
         vim.notify(
           string.format('Linting complete: %d issues found', #diagnostics),
@@ -403,7 +407,11 @@ function M.setup_commands()
     local tool = opts.args ~= '' and opts.args or nil
     formatter.format(vim.api.nvim_get_current_buf(), tool, function(err)
       if err then
-        vim.notify('Formatting failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+        vim.notify(
+          'Formatting failed: ' .. err,
+          vim.log.levels.ERROR,
+          { title = 'kotlin-extended-lsp' }
+        )
       else
         vim.notify('Formatting complete', vim.log.levels.INFO, { title = 'kotlin-extended-lsp' })
       end
@@ -421,7 +429,11 @@ function M.setup_commands()
     local editor = load_module('editor')
     editor.organize_imports(vim.api.nvim_get_current_buf(), function(err)
       if err then
-        vim.notify('Organize imports failed: ' .. err, vim.log.levels.ERROR, { title = 'kotlin-extended-lsp' })
+        vim.notify(
+          'Organize imports failed: ' .. err,
+          vim.log.levels.ERROR,
+          { title = 'kotlin-extended-lsp' }
+        )
       else
         vim.notify('Imports organized', vim.log.levels.INFO, { title = 'kotlin-extended-lsp' })
       end

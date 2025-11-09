@@ -4,8 +4,8 @@
 local M = {}
 
 local config = require('kotlin-extended-lsp.config')
-local logger = require('kotlin-extended-lsp.logger')
 local job = require('kotlin-extended-lsp.utils.job')
+local logger = require('kotlin-extended-lsp.logger')
 
 --- Find detekt executable
 --- @return string|nil
@@ -43,7 +43,9 @@ local function parse_detekt_xml(xml)
   -- Simple XML parsing for <error> tags
   -- Format: <error line="N" column="M" severity="..." message="..." source="RuleName" />
   for line_str, col_str, severity, message, source in
-    xml:gmatch('<error%s+line="(%d+)"%s+column="(%d+)"%s+severity="(%w+)"%s+message="([^"]+)"%s+source="([^"]+)"%s*/>')
+    xml:gmatch(
+      '<error%s+line="(%d+)"%s+column="(%d+)"%s+severity="(%w+)"%s+message="([^"]+)"%s+source="([^"]+)"%s*/>'
+    )
   do
     local line = tonumber(line_str) or 1
     local col = tonumber(col_str) or 0
