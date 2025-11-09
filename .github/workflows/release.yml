@@ -137,12 +137,15 @@ jobs:
             COMMITS=$(git log "$PREVIOUS_TAG..$VERSION" --pretty=format:"- %s (%h)" --no-merges)
           fi
 
-          # Create changelog
-          CHANGELOG="## What's Changed
+          # Create changelog using heredoc
+          CHANGELOG=$(cat <<EOF
+          ## What's Changed
 
-$COMMITS
+          $COMMITS
 
-**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}"
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}
+          EOF
+          )
 
           # Save to output (handle multiline)
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
