@@ -42,6 +42,13 @@ function M.setup(opts)
     return
   end
 
+  -- デコンパイル機能をセットアップ
+  local decompile_opts = opts.decompile or {}
+  if opts.enable_decompile ~= false then
+    local decompile = require('kotlin-extended-lsp.features.decompile')
+    decompile.setup(decompile_opts)
+  end
+
   -- FileTypeイベントでLSPを起動
   vim.api.nvim_create_autocmd('FileType', {
     pattern = 'kotlin',
@@ -79,13 +86,13 @@ function M.setup(opts)
           vim.notify('kotlin-lsp attached to buffer ' .. bufnr, vim.log.levels.INFO)
 
           -- 基本的なキーマップを設定
-          local opts = { buffer = bufnr, silent = true }
-          vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-          vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-          vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
-          vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
-          vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
-          vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
+          -- 注: gdはdecompile機能でオーバーライドされる
+          local keymap_opts = { buffer = bufnr, silent = true }
+          vim.keymap.set('n', 'K', vim.lsp.buf.hover, keymap_opts)
+          vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, keymap_opts)
+          vim.keymap.set('n', 'gr', vim.lsp.buf.references, keymap_opts)
+          vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, keymap_opts)
+          vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, keymap_opts)
         end,
       })
     end,
