@@ -49,6 +49,13 @@ function M.setup(opts)
     decompile.setup(decompile_opts)
   end
 
+  -- カスタムコマンド群をセットアップ
+  local commands_opts = opts.commands or {}
+  if opts.enable_commands ~= false then
+    local commands = require('kotlin-extended-lsp.features.commands')
+    commands.setup(commands_opts)
+  end
+
   -- FileTypeイベントでLSPを起動
   vim.api.nvim_create_autocmd('FileType', {
     pattern = 'kotlin',
