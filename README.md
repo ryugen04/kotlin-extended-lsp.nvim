@@ -1,431 +1,142 @@
 # kotlin-extended-lsp.nvim
 
-> A Neovim plugin that extends the [official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) to enable navigation into JAR files and compiled classes with automatic decompilation.
+JetBrains公式kotlin-lspをNeovimで使用するための最小限のプラグイン
 
-**Note**: This plugin uses the official JetBrains kotlin-lsp, which is currently in pre-alpha stage.
+## 特徴
 
-[![Neovim](https://img.shields.io/badge/Neovim-0.8+-green.svg?style=flat-square&logo=neovim)](https://neovim.io)
-[![Lua](https://img.shields.io/badge/Lua-5.1+-blue.svg?style=flat-square&logo=lua)](https://www.lua.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+- JetBrains公式kotlin-lsp (Standalone版) の統合
+- 自動インストールスクリプト付属
+- Gradleプロジェクトの自動検出とインデックス化
+- 基本的なLSP機能（定義ジャンプ、ホバー、補完、リファレンス等）
 
-## Overview
+## インストール
 
-kotlin-extended-lsp.nvim seamlessly integrates with the official JetBrains kotlin-lsp and automatically decompiles compiled JAR files and class files when you navigate to code definitions. Inspired by [omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim).
+### 1. プラグインマネージャーで追加
 
-## Features
-
-- Automatic decompilation when jumping to definitions in JAR files and class files
-- Enhanced standard LSP operations (go-to-definition, implementation, type definition, declaration)
-- Cached decompilation results for improved performance
-- Customizable keymaps and UI options
-- Performance tuning capabilities
-- Comprehensive logging and health check functionality
-
-## Demo
-
-<!-- Place demo GIF here -->
-```
-[Demo GIF Placeholder]
-Jump to Kotlin code inside JAR files
-and view automatically decompiled content
-```
-
-## Requirements
-
-- Neovim 0.8 or higher
-- [Official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) installed and configured
-  - Install with: `brew install JetBrains/utils/kotlin-lsp`
-  - Currently in pre-alpha stage
-- [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (recommended)
-
-## Installation
-
-### lazy.nvim
+**lazy.nvimの場合**:
 
 ```lua
 {
-  'yourusername/kotlin-extended-lsp.nvim',
-  dependencies = { 'neovim/nvim-lspconfig' },
+  'your-username/kotlin-extended-lsp.nvim',
   ft = 'kotlin',
   config = function()
-    require('kotlin-extended-lsp').setup({
-      -- Configuration options
-    })
-  end,
+    require('kotlin-extended-lsp').setup()
+  end
 }
 ```
 
-### packer.nvim
+**ローカル開発の場合**:
 
 ```lua
-use {
-  'yourusername/kotlin-extended-lsp.nvim',
-  requires = { 'neovim/nvim-lspconfig' },
+{
+  dir = '~/dev/projects/kotlin-extended-lsp.nvim',
   ft = 'kotlin',
   config = function()
-    require('kotlin-extended-lsp').setup({
-      -- Configuration options
-    })
-  end,
+    require('kotlin-extended-lsp').setup()
+  end
 }
 ```
 
-### vim-plug
+### 2. kotlin-lspをインストール
 
-```vim
-Plug 'neovim/nvim-lspconfig'
-Plug 'yourusername/kotlin-extended-lsp.nvim'
-
-" In init.lua or Lua script
-lua << EOF
-require('kotlin-extended-lsp').setup({
-  -- Configuration options
-})
-EOF
-```
-
-## Quick Start
-
-Minimal configuration example:
-
-```lua
-require('kotlin-extended-lsp').setup({
-  enabled = true,
-  auto_setup_keymaps = true,
-})
-
--- Configure kotlin-lsp
-require('lspconfig').kotlin_lsp.setup({
-  -- Standard LSP configuration
-})
-```
-
-This configuration automatically enables the plugin and sets up default keymaps when you open Kotlin files.
-
-## Configuration
-
-Complete configuration example with all default values:
-
-```lua
-require('kotlin-extended-lsp').setup({
-  -- Enable plugin
-  enabled = true,
-
-  -- Auto-setup keymaps
-  auto_setup_keymaps = true,
-  keymaps = {
-    -- Navigation (jump functions)
-    definition = 'gd',          -- Jump to definition
-    implementation = 'gi',      -- Jump to implementation
-    type_definition = 'gy',     -- Jump to type definition
-    declaration = 'gD',         -- Jump to declaration
-    references = 'gr',          -- Find references
-
-    -- Documentation
-    hover = 'K',                -- Hover documentation
-    signature_help = '<C-k>',   -- Signature help
-
-    -- Editing
-    rename = '<leader>rn',      -- Rename symbol
-    code_action = '<leader>ca', -- Code actions
-    format = '<leader>f',       -- Format
-
-    -- Diagnostics
-    goto_prev = '[d',           -- Go to previous diagnostic
-    goto_next = ']d',           -- Go to next diagnostic
-    open_float = '<leader>e',   -- Show diagnostic float
-    setloclist = '<leader>q',   -- Set diagnostics to location list
-  },
-
-  -- Behavior settings
-  use_global_handlers = false,      -- Use global handlers
-  silent_fallbacks = false,         -- Don't notify on fallback
-  decompile_on_jar = true,          -- Auto-decompile when jumping into JARs
-  show_capabilities_on_attach = false,  -- Show server capabilities on attach
-
-  -- Decompile settings
-  decompile = {
-    show_line_numbers = true,       -- Show line numbers
-    syntax_highlight = true,        -- Enable syntax highlighting
-    auto_close_on_leave = false,    -- Auto-close buffer when leaving
-    prefer_source = true,           -- Prefer source when available
-  },
-
-  -- Performance settings
-  performance = {
-    debounce_ms = 100,              -- Debounce time (milliseconds)
-    max_file_size = 1024 * 1024,    -- Maximum file size (1MB)
-    cache_enabled = true,           -- Enable caching
-    cache_ttl = 3600,               -- Cache time-to-live (seconds)
-  },
-
-  -- LSP settings
-  lsp = {
-    timeout_ms = 5000,              -- Timeout
-    retry_count = 3,                -- Retry count
-    retry_delay_ms = 500,           -- Retry delay
-  },
-
-  -- Logging settings
-  log = {
-    level = 'info',                 -- trace, debug, info, warn, error, off
-    use_console = true,             -- Output to console
-    use_file = false,               -- Output to file
-    file_path = vim.fn.stdpath('cache') .. '/kotlin-extended-lsp.log',
-  },
-
-  -- UI settings
-  ui = {
-    float = {
-      border = 'rounded',           -- Float window border style
-      max_width = 100,              -- Maximum width
-      max_height = 30,              -- Maximum height
-    },
-    signs = {
-      decompiled = '󰘧',             -- Decompiled sign
-      loading = '󰔟',                -- Loading sign
-      error = '',                  -- Error sign
-    },
-  },
-})
-```
-
-## Commands
-
-The plugin provides the following user commands:
-
-### `:KotlinLspCapabilities`
-
-Display kotlin-lsp server capabilities.
-
-```vim
-:KotlinLspCapabilities
-```
-
-### `:KotlinDecompile [uri]`
-
-Decompile the specified JAR/class file URI. If no argument is provided, decompiles the current buffer's file.
-
-```vim
-:KotlinDecompile
-:KotlinDecompile jar:file:///path/to/library.jar!/com/example/MyClass.class
-```
-
-### `:KotlinClearCache`
-
-Clear the decompilation cache.
-
-```vim
-:KotlinClearCache
-```
-
-### `:KotlinToggleLog [level]`
-
-Change the log level. If no argument is provided, displays the current log level.
-
-```vim
-:KotlinToggleLog debug
-:KotlinToggleLog info
-:KotlinToggleLog
-```
-
-Available levels: `trace`, `debug`, `info`, `warn`, `error`, `off`
-
-### `:KotlinShowConfig`
-
-Display the current configuration.
-
-```vim
-:KotlinShowConfig
-```
-
-### `:KotlinExtendedLspHealth`
-
-Run a health check for the plugin.
-
-```vim
-:KotlinExtendedLspHealth
-```
-
-## Keymaps
-
-Default keymaps (when `auto_setup_keymaps = true`):
-
-### Navigation (Jump Functions)
-
-| Key | Function | Description |
-|-----|----------|-------------|
-| `gd` | Jump to definition | Auto-decompiles definitions in JAR files |
-| `gi` | Jump to implementation | Falls back to definition if implementation not found |
-| `gy` | Jump to type definition | Jump to type definition location |
-| `gD` | Jump to declaration | Jump to declaration location |
-| `gr` | Find references | Search for symbol references |
-
-### Documentation
-
-| Key | Function | Description |
-|-----|----------|-------------|
-| `K` | Hover documentation | Display documentation for symbol under cursor |
-| `<C-k>` | Signature help | Display function signature (works in insert mode) |
-
-### Editing
-
-| Key | Function | Description |
-|-----|----------|-------------|
-| `<leader>rn` | Rename symbol | Rename symbol under cursor |
-| `<leader>ca` | Code actions | Display available code actions (works in visual mode) |
-| `<leader>f` | Format | Format entire document or selection |
-
-### Diagnostics
-
-| Key | Function | Description |
-|-----|----------|-------------|
-| `[d` | Go to previous diagnostic | Jump to previous error/warning |
-| `]d` | Go to next diagnostic | Jump to next error/warning |
-| `<leader>e` | Show diagnostic float | Display diagnostic in float window |
-| `<leader>q` | Set diagnostics to location list | Add all diagnostics to location list |
-
-### Keymap Customization
-
-You can freely customize keymaps in the configuration. Set to empty string to disable a keymap.
-
-```lua
-require('kotlin-extended-lsp').setup({
-  keymaps = {
-    -- Navigation
-    definition = '<leader>gd',
-    implementation = '<leader>gi',
-    type_definition = '',  -- Disabled
-    declaration = '',      -- Disabled
-    references = 'gr',
-
-    -- Documentation
-    hover = 'K',
-    signature_help = '<C-s>',  -- Changed to Ctrl-s
-
-    -- Editing
-    rename = '<F2>',           -- Changed to F2
-    code_action = '<leader>ca',
-    format = '<leader>lf',     -- Changed to <leader>lf
-
-    -- Diagnostics
-    goto_prev = '[e',          -- Changed to [e
-    goto_next = ']e',          -- Changed to ]e
-    open_float = 'gl',         -- Changed to gl
-    setloclist = '',           -- Disabled
-  },
-})
-```
-
-## Health Check
-
-To check the plugin status, run:
-
-```vim
-:KotlinExtendedLspHealth
-```
-
-Or use Neovim's standard health check:
-
-```vim
-:checkhealth kotlin-extended-lsp
-```
-
-The health check verifies:
-
-- Plugin initialization status
-- kotlin-lsp server connection
-- Server-supported capabilities
-- Decompilation feature availability
-- Cache status
-
-## Troubleshooting
-
-### Cannot jump into JAR files
-
-1. Verify that the official JetBrains kotlin-lsp is correctly installed
-   - `brew install JetBrains/utils/kotlin-lsp`
-2. Run the health check to verify the `kotlin/jarClassContents` command is available
-3. Set log level to `debug` to view detailed logs
-
-```vim
-:KotlinToggleLog debug
-```
-
-### Decompilation results not displayed
-
-1. Check if file size exceeds `performance.max_file_size`
-2. Try clearing the cache: `:KotlinClearCache`
-3. Try extending the timeout
-
-```lua
-require('kotlin-extended-lsp').setup({
-  lsp = {
-    timeout_ms = 10000,  -- Extend to 10 seconds
-  },
-})
-```
-
-### Performance issues
-
-1. Verify caching is enabled
-2. Adjust debounce time
-3. Limit maximum file size
-
-```lua
-require('kotlin-extended-lsp').setup({
-  performance = {
-    cache_enabled = true,
-    debounce_ms = 200,
-    max_file_size = 512 * 1024,  -- Limit to 512KB
-  },
-})
-```
-
-### Checking log files
-
-Enable log file output to view detailed information:
-
-```lua
-require('kotlin-extended-lsp').setup({
-  log = {
-    level = 'debug',
-    use_file = true,
-    file_path = vim.fn.stdpath('cache') .. '/kotlin-extended-lsp.log',
-  },
-})
-```
-
-Log file location:
+プラグインディレクトリに移動してインストールスクリプトを実行します:
 
 ```bash
-# Unix/Linux/macOS
-~/.cache/nvim/kotlin-extended-lsp.log
-
-# Windows
-~/AppData/Local/nvim-data/kotlin-extended-lsp.log
+cd ~/.local/share/nvim/lazy/kotlin-extended-lsp.nvim
+./scripts/install-lsp.sh
 ```
 
-## Contributing
+スクリプトは以下を自動的に実行します:
+- JetBrains公式リポジトリから最新版をダウンロード
+- `bin/kotlin-lsp/`に展開
+- 実行権限を設定
+- 一時ファイルをクリーンアップ
 
-Contributions are welcome! Bug reports, feature suggestions, and pull requests are all appreciated.
+## 使用方法
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Kotlinファイルを開くと自動的にkotlin-lspが起動します。
 
-## License
+### 基本機能
 
-MIT License - See [LICENSE](LICENSE) file for details.
+プラグインは以下を自動で行います:
 
-## Acknowledgments
+1. **プロジェクトルート検出**: `build.gradle.kts`, `settings.gradle.kts`などを基準に検出
+2. **LSPサーバー起動**: 検出したルートディレクトリで kotlin-lsp を起動
+3. **Gradleプロジェクトインポート**: 依存関係を自動的にインデックス化
 
-This project is grateful to:
+### キーマップ
 
-- [Official JetBrains kotlin-lsp](https://github.com/Kotlin/kotlin-lsp) - Official Kotlin language server implementation (pre-alpha stage)
-- [omnisharp-extended-lsp.nvim](https://github.com/Hoffs/omnisharp-extended-lsp.nvim) - Inspiration for this plugin
-- Neovim community - For the amazing editor and ecosystem
+デフォルトで以下のキーマップが設定されます:
 
-## Links
+- `gd` - 定義へジャンプ
+- `K` - ホバー情報を表示
+- `gi` - 実装へジャンプ
+- `gr` - リファレンスを表示
+- `<leader>rn` - リネーム
+- `<leader>ca` - コードアクション
 
-- [Issue Tracker](https://github.com/yourusername/kotlin-extended-lsp.nvim/issues)
-- [Pull Requests](https://github.com/yourusername/kotlin-extended-lsp.nvim/pulls)
-- [Changelog](https://github.com/yourusername/kotlin-extended-lsp.nvim/releases)
+## 要件
+
+- Neovim 0.10+
+- Java 17+ (kotlin-lspの実行に必要)
+- Kotlin Gradleプロジェクト
+
+## プロジェクト構造
+
+```
+kotlin-extended-lsp.nvim/
+├── bin/
+│   └── kotlin-lsp/          # LSPバイナリ (gitignore対象)
+│       ├── kotlin-lsp.sh    # 起動スクリプト
+│       ├── lib/             # JARファイル
+│       └── native/          # ネイティブライブラリ
+├── lua/
+│   └── kotlin-extended-lsp/
+│       └── init.lua         # メインプラグイン実装
+├── scripts/
+│   └── install-lsp.sh       # インストールスクリプト
+├── .gitignore
+└── README.md
+```
+
+## トラブルシューティング
+
+### LSPが起動しない
+
+1. kotlin-lspが正しくインストールされているか確認:
+   ```bash
+   ls -la bin/kotlin-lsp/
+   ```
+
+2. Javaがインストールされているか確認:
+   ```bash
+   java -version  # Java 17以上が必要
+   ```
+
+3. LSPログを確認:
+   ```vim
+   :lua print(vim.lsp.get_log_path())
+   ```
+
+### プロジェクトルートが検出されない
+
+プロジェクトルートに以下のいずれかのファイルがあることを確認してください:
+- `settings.gradle.kts`
+- `settings.gradle`
+- `build.gradle.kts`
+- `build.gradle`
+- `pom.xml`
+
+## 既知の制限事項
+
+kotlin-lsp v0.253.10629は現在**pre-alphaステータス**です:
+
+- Gradle依存関係の解決が不完全な場合があります
+- 一部の外部ライブラリで補完が効かない場合があります
+- IntelliJ IDEA/Android Studioと比較して機能が限定的です
+
+より安定したLSPが必要な場合は、コミュニティ版の `fwcd/kotlin-language-server` も検討してください。
+
+## ライセンス
+
+MIT

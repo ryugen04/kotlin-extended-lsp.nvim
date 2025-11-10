@@ -1,0 +1,11 @@
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/domain/Post.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/Application.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/api/UserRoutes.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/service/UserService.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/domain/User.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/repository/UserRepository.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/service/PostService.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/config/DIContainer.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/util/Extensions.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/domain/Comment.kt
+/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/repository/PostRepository.kt

@@ -11,6 +11,7 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
+    google()
 }
 
 dependencies {
@@ -43,8 +44,8 @@ dependencies {
     implementation("com.h2database:h2:2.2.224")
 
     // DI（Dependency Injection）
-    implementation("org.koin:koin-core:3.5.3")
-    implementation("org.koin:koin-ktor:3.5.3")
+    implementation("io.insert-koin:koin-core:3.5.6")
+    implementation("io.insert-koin:koin-ktor:3.5.6")
 
     // ロギング
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
