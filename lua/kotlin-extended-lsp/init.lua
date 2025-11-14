@@ -42,6 +42,12 @@ function M.setup(opts)
     return
   end
 
+  -- Treesitterパーサーの自動セットアップ（オプション）
+  if opts.enable_ts_definition ~= false and opts.auto_install_treesitter ~= false then
+    local ts_setup = require('kotlin-extended-lsp.treesitter_setup')
+    ts_setup.setup()
+  end
+
   -- デコンパイル機能をセットアップ
   local decompile_opts = opts.decompile or {}
   if opts.enable_decompile ~= false then
@@ -54,6 +60,54 @@ function M.setup(opts)
   if opts.enable_commands ~= false then
     local commands = require('kotlin-extended-lsp.features.commands')
     commands.setup(commands_opts)
+  end
+
+  -- Treesitterベースのジャンプ機能をセットアップ（優先）
+  -- これがgdとgyをオーバーライドし、LSPフォールバックを提供
+  local ts_def_opts = opts.ts_definition or {}
+  if opts.enable_ts_definition ~= false then
+    local ts_definition = require('kotlin-extended-lsp.features.ts_definition')
+    ts_definition.setup(ts_def_opts)
+  end
+
+  -- 型定義ジャンプ機能をセットアップ（LSPベース）
+  -- Treesitterが有効な場合、これは直接呼ばれずフォールバックとして使用される
+  local type_def_opts = opts.type_definition or {}
+  if opts.enable_type_definition ~= false then
+    local type_definition = require('kotlin-extended-lsp.features.type_definition')
+    -- treesitterが有効な場合はキーマップを設定しない
+    if opts.enable_ts_definition ~= false then
+      type_def_opts.setup_keymaps = false
+    end
+    type_definition.setup(type_def_opts)
+  end
+
+  -- 実装ジャンプ機能をセットアップ
+  local impl_opts = opts.implementation or {}
+  if opts.enable_implementation ~= false then
+    local implementation = require('kotlin-extended-lsp.features.implementation')
+    implementation.setup(impl_opts)
+  end
+
+  -- 宣言ジャンプ機能をセットアップ
+  local decl_opts = opts.declaration or {}
+  if opts.enable_declaration ~= false then
+    local declaration = require('kotlin-extended-lsp.features.declaration')
+    declaration.setup(decl_opts)
+  end
+
+  -- テストランナー機能をセットアップ
+  local test_runner_opts = opts.test_runner or {}
+  if opts.enable_test_runner ~= false then
+    local test_runner = require('kotlin-extended-lsp.features.test_runner')
+    test_runner.setup(test_runner_opts)
+  end
+
+  -- リファクタリング機能をセットアップ
+  local refactor_opts = opts.refactor or {}
+  if opts.enable_refactor ~= false then
+    local refactor = require('kotlin-extended-lsp.features.refactor')
+    refactor.setup(refactor_opts)
   end
 
   -- FileTypeイベントでLSPを起動
@@ -93,10 +147,9 @@ function M.setup(opts)
           vim.notify('kotlin-lsp attached to buffer ' .. bufnr, vim.log.levels.INFO)
 
           -- 基本的なキーマップを設定
-          -- 注: gdはdecompile機能でオーバーライドされる
+          -- 注: gd, gi, gyは各feature moduleでオーバーライドされる
           local keymap_opts = { buffer = bufnr, silent = true }
           vim.keymap.set('n', 'K', vim.lsp.buf.hover, keymap_opts)
-          vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, keymap_opts)
           vim.keymap.set('n', 'gr', vim.lsp.buf.references, keymap_opts)
           vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, keymap_opts)
           vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, keymap_opts)

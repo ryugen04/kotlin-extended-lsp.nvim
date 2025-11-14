@@ -192,6 +192,9 @@ function M.decompile_uri(uri, opts)
   M.decompile_and_show(uri, opts)
 end
 
+-- go_to_definition のエイリアス（treesitter統合用）
+M.go_to_definition = M.decompile_under_cursor
+
 -- キャッシュをクリア
 function M.clear_cache()
   for uri, buf in pairs(decompiled_buffers) do
