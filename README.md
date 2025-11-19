@@ -5,7 +5,12 @@ JetBrains公式kotlin-lspをNeovimで使用するための最小限のプラグ�
 ## 特徴
 
 - JetBrains公式kotlin-lsp (Standalone版) の統合
-- **Kotlinテスト実行機能** (NEW!)
+- **リファクタリング機能** (NEW!)
+  - Code Actions UIの改善（カテゴリ別表示）
+  - Extract Variable（選択範囲を変数に抽出）
+  - Inline Variable（変数をインライン化）
+  - Refactorメニュー
+- **Kotlinテスト実行機能**
   - JUnit/Kotestサポート
   - カーソル位置/ファイル/プロジェクト全体のテスト実行
   - テスト結果の可視化（Floating Window）
@@ -14,6 +19,10 @@ JetBrains公式kotlin-lspをNeovimで使用するための最小限のプラグ�
   - ファイル内定義ジャンプの高速化
   - スコープを考慮した正確な定義解決
   - LSPへの自動フォールバック
+- **拡張されたジャンプ機能**
+  - 型定義ジャンプ (`gy`) - hover + workspace/symbol
+  - 実装ジャンプ (`gi`) - definition + workspace/symbol
+  - デコンパイル対応の定義ジャンプ
 - **外部プラグイン統合**
   - which-key統合（v2, v3対応）
   - Telescope統合
@@ -21,10 +30,6 @@ JetBrains公式kotlin-lspをNeovimで使用するための最小限のプラグ�
   - プログラマブル公開API
 - 自動インストールスクリプト付属
 - Gradleプロジェクトの自動検出とインデックス化
-- 拡張されたジャンプ機能
-  - 型定義ジャンプ (`gy`)
-  - 実装ジャンプ (`gi`)
-  - デコンパイル対応の定義ジャンプ
 - カスタムコマンド群（インポート整理、診断修正など）
 
 ## インストール
@@ -397,17 +402,56 @@ kotlin-extended-lsp.nvim/
 - [実装詳細](docs/IMPLEMENTATION_DETAILS.md) - 技術実装の詳細
 - [Treesitter統合ガイド](docs/TREESITTER_INTEGRATION.md) - Treesitterベースのジャンプ機能について
 
-## 既知の制限事項
+## kotlin-lspサポート状況と代替実装
 
-### kotlin-lsp
+kotlin-lsp v0.253.10629は現在**pre-alphaステータス**で、一部のLSP標準機能が未実装です。kotlin-extended-lsp.nvimは、未サポート機能に対して独自の代替実装を提供しています。
 
-kotlin-lsp v0.253.10629は現在**pre-alphaステータス**です:
+### ✅ kotlin-lspが完全サポートする機能
 
-- Gradle依存関係の解決が不完全な場合があります
-- 一部の外部ライブラリで補完が効かない場合があります
-- IntelliJ IDEA/Android Studioと比較して機能が限定的です
+| 機能 | LSPメソッド | 説明 |
+|------|------------|------|
+| 定義ジャンプ | `textDocument/definition` | シンボルの定義へジャンプ |
+| 参照検索 | `textDocument/references` | シンボルの使用箇所を検索 |
+| ホバー情報 | `textDocument/hover` | 型情報・ドキュメントを表示 |
+| リネーム | `textDocument/rename` | シンボルのリネーム |
+| 補完 | `textDocument/completion` | コード補完 |
+| 診断 | `textDocument/diagnostic` | エラー・警告の表示 |
+| インポート整理 | `kotlin/organizeImports` | import文の整理（カスタムコマンド） |
+| デコンパイル | `kotlin/decompile` | JAR内クラスのデコンパイル（カスタムコマンド） |
 
-より安定したLSPが必要な場合は、コミュニティ版の `fwcd/kotlin-language-server` も検討してください。
+### 🔄 代替実装を提供する機能
+
+kotlin-lspが未サポートの機能について、プラグイン側で独自実装を提供しています：
+
+| 機能 | 標準LSPメソッド | 代替実装方法 | 制限事項 |
+|------|---------------|------------|---------|
+| **型定義ジャンプ** | `textDocument/typeDefinition` | `hover` + `workspace/symbol` | 推論型は部分対応 |
+| **実装ジャンプ** | `textDocument/implementation` | `definition` + `workspace/symbol` | クロスファイル参照のみ |
+| **Extract Variable** | `codeAction (refactor.extract)` | Treesitter + 文字列操作 | 単一式のみ対応 |
+| **Inline Variable** | `codeAction (refactor.inline)` | `references` + 置換 | 同一ファイル内のみ |
+
+**代替実装の動作**:
+- 型定義ジャンプ (`gy`): hover情報から型名を抽出し、workspace/symbolで検索
+- 実装ジャンプ (`gi`): 定義のURIを取得後、異なるURIの同名クラスを実装として扱う
+- Extract/Inline Variable: Treesitterで構文解析し、LSP referencesで参照を取得
+
+### ❌ 現在未対応の機能
+
+以下の機能はkotlin-lspが未サポートで、プラグイン側でも未実装です：
+
+- **Extract Method/Function** - kotlin-lspの対応待ち
+- **Change Signature** - kotlin-lspの対応待ち
+- **Code Lens (Run/Debug)** - kotlin-lspの対応待ち
+
+### 一般的な制限事項
+
+- **Gradle依存関係の解決**: 一部の外部ライブラリで補完が効かない場合があります
+- **IntelliJ IDEAとの機能差**: kotlin-lspはIntelliJ IDEA/Android Studioと比較して機能が限定的です
+- **パフォーマンス**: 大規模プロジェクトでは初回インデックス作成に時間がかかります
+
+### 代替LSPの検討
+
+より安定したLSPが必要な場合は、コミュニティ版の `fwcd/kotlin-language-server` も検討してください。ただし、こちらも一部機能が限定的です。
 
 ### Treesitterベースのジャンプ機能
 

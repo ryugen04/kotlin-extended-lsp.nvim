@@ -2,39 +2,39 @@
 
 ## Metrics
 
-* 89 number of properties
+* 93 number of properties
 
-* 114 number of functions
+* 116 number of functions
 
 * 58 number of classes
 
 * 7 number of packages
 
-* 12 number of kt files
+* 13 number of kt files
 
 ## Complexity Report
 
-* 1,812 lines of code (loc)
+* 1,859 lines of code (loc)
 
-* 1,230 source lines of code (sloc)
+* 1,257 source lines of code (sloc)
 
-* 955 logical lines of code (lloc)
+* 968 logical lines of code (lloc)
 
-* 325 comment lines of code (cloc)
+* 337 comment lines of code (cloc)
 
-* 203 cyclomatic complexity (mcc)
+* 205 cyclomatic complexity (mcc)
 
 * 37 cognitive complexity
 
-* 56 number of total code smells
+* 63 number of total code smells
 
 * 26% comment source ratio
 
-* 212 mcc per 1,000 lloc
+* 211 mcc per 1,000 lloc
 
-* 58 code smells per 1,000 lloc
+* 65 code smells per 1,000 lloc
 
-## Findings (56)
+## Findings (63)
 
 ### complexity, LongMethod (1)
 
@@ -115,11 +115,26 @@ The caught exception is too generic. Prefer catching specific exceptions to the 
 
 ```
 
-### formatting, ImportOrdering (1)
+### formatting, ImportOrdering (2)
 
 Detects imports in non default order
 
 [Documentation](https://detekt.dev/docs/rules/formatting#importordering)
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:3:1
+```
+Imports must be ordered in lexicographic order without any empty lines in-between with "java", "javax", "kotlin" and aliases in the end
+```
+```kotlin
+1 package com.example
+2 
+3 import io.ktor.server.application.*
+! ^ error
+4 import io.ktor.server.routing.*
+5 import io.ktor.server.response.*
+6 import org.jetbrains.exposed.sql.Table
+
+```
 
 * /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/service/UserService.kt:3:1
 ```
@@ -250,7 +265,7 @@ Missing { ... }
 
 ```
 
-### formatting, NoWildcardImports (21)
+### formatting, NoWildcardImports (24)
 
 Detects wildcard imports
 
@@ -365,6 +380,53 @@ Wildcard import
 13 import kotlinx.serialization.json.Json
 14 import mu.KotlinLogging
 15 import org.koin.ktor.ext.inject
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:3:1
+```
+Wildcard import
+```
+```kotlin
+1 package com.example
+2 
+3 import io.ktor.server.application.*
+! ^ error
+4 import io.ktor.server.routing.*
+5 import io.ktor.server.response.*
+6 import org.jetbrains.exposed.sql.Table
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:4:1
+```
+Wildcard import
+```
+```kotlin
+1 package com.example
+2 
+3 import io.ktor.server.application.*
+4 import io.ktor.server.routing.*
+! ^ error
+5 import io.ktor.server.response.*
+6 import org.jetbrains.exposed.sql.Table
+7 import org.koin.core.context.startKoin
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:5:1
+```
+Wildcard import
+```
+```kotlin
+2 
+3 import io.ktor.server.application.*
+4 import io.ktor.server.routing.*
+5 import io.ktor.server.response.*
+! ^ error
+6 import org.jetbrains.exposed.sql.Table
+7 import org.koin.core.context.startKoin
+8 import org.koin.dsl.module
 
 ```
 
@@ -651,7 +713,7 @@ Line detected, which is longer than the defined maximum line length in the code 
 
 ```
 
-### style, WildcardImport (21)
+### style, WildcardImport (24)
 
 Wildcard imports should be replaced with imports using fully qualified class names. Wildcard imports can lead to naming conflicts. A library update can introduce naming clashes with your classes which results in compilation errors.
 
@@ -766,6 +828,53 @@ io.ktor.server.routing.* is a wildcard import. Replace it with fully qualified i
 13 import kotlinx.serialization.json.Json
 14 import mu.KotlinLogging
 15 import org.koin.ktor.ext.inject
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:3:1
+```
+io.ktor.server.application.* is a wildcard import. Replace it with fully qualified imports.
+```
+```kotlin
+1 package com.example
+2 
+3 import io.ktor.server.application.*
+! ^ error
+4 import io.ktor.server.routing.*
+5 import io.ktor.server.response.*
+6 import org.jetbrains.exposed.sql.Table
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:4:1
+```
+io.ktor.server.routing.* is a wildcard import. Replace it with fully qualified imports.
+```
+```kotlin
+1 package com.example
+2 
+3 import io.ktor.server.application.*
+4 import io.ktor.server.routing.*
+! ^ error
+5 import io.ktor.server.response.*
+6 import org.jetbrains.exposed.sql.Table
+7 import org.koin.core.context.startKoin
+
+```
+
+* /home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt:5:1
+```
+io.ktor.server.response.* is a wildcard import. Replace it with fully qualified imports.
+```
+```kotlin
+2 
+3 import io.ktor.server.application.*
+4 import io.ktor.server.routing.*
+5 import io.ktor.server.response.*
+! ^ error
+6 import org.jetbrains.exposed.sql.Table
+7 import org.koin.core.context.startKoin
+8 import org.koin.dsl.module
 
 ```
 
@@ -992,4 +1101,4 @@ com.example.domain.* is a wildcard import. Replace it with fully qualified impor
 
 ```
 
-generated with [detekt version 1.23.8](https://detekt.dev/) on 2025-11-10 11:14:45 UTC
+generated with [detekt version 1.23.8](https://detekt.dev/) on 2025-11-10 12:13:35 UTC

@@ -64,6 +64,15 @@
 	<error line="6" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />
 	<error line="6" column="1" severity="warning" message="com.example.domain.* is a wildcard import. Replace it with fully qualified imports." source="detekt.WildcardImport" />
 </file>
+<file name="/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt">
+	<error line="3" column="1" severity="warning" message="Imports must be ordered in lexicographic order without any empty lines in-between with &quot;java&quot;, &quot;javax&quot;, &quot;kotlin&quot; and aliases in the end" source="detekt.ImportOrdering" />
+	<error line="3" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />
+	<error line="4" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />
+	<error line="5" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />
+	<error line="3" column="1" severity="warning" message="io.ktor.server.application.* is a wildcard import. Replace it with fully qualified imports." source="detekt.WildcardImport" />
+	<error line="4" column="1" severity="warning" message="io.ktor.server.routing.* is a wildcard import. Replace it with fully qualified imports." source="detekt.WildcardImport" />
+	<error line="5" column="1" severity="warning" message="io.ktor.server.response.* is a wildcard import. Replace it with fully qualified imports." source="detekt.WildcardImport" />
+</file>
 <file name="/home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/config/DIContainer.kt">
 	<error line="3" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />
 	<error line="4" column="1" severity="warning" message="Wildcard import" source="detekt.NoWildcardImports" />

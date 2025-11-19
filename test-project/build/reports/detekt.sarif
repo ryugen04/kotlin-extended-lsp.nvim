@@ -670,6 +670,94 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "endLine": 3,
+                  "startColumn": 1,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Imports must be ordered in lexicographic order without any empty lines in-between with \"java\", \"javax\", \"kotlin\" and aliases in the end"
+          },
+          "ruleId": "detekt.formatting.ImportOrdering"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "endLine": 3,
+                  "startColumn": 1,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Wildcard import"
+          },
+          "ruleId": "detekt.formatting.NoWildcardImports"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "endLine": 4,
+                  "startColumn": 1,
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Wildcard import"
+          },
+          "ruleId": "detekt.formatting.NoWildcardImports"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Wildcard import"
+          },
+          "ruleId": "detekt.formatting.NoWildcardImports"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
                   "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/config/DIContainer.kt"
                 },
                 "region": {
@@ -1145,6 +1233,72 @@
           ],
           "message": {
             "text": "io.ktor.server.routing.* is a wildcard import. Replace it with fully qualified imports."
+          },
+          "ruleId": "detekt.style.WildcardImport"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 36,
+                  "endLine": 3,
+                  "startColumn": 1,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "io.ktor.server.application.* is a wildcard import. Replace it with fully qualified imports."
+          },
+          "ruleId": "detekt.style.WildcardImport"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 32,
+                  "endLine": 4,
+                  "startColumn": 1,
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "io.ktor.server.routing.* is a wildcard import. Replace it with fully qualified imports."
+          },
+          "ruleId": "detekt.style.WildcardImport"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///home/glaucus03/dev/projects/kotlin-extended-lsp.nvim/test-project/src/main/kotlin/com/example/TestDecompile.kt"
+                },
+                "region": {
+                  "endColumn": 33,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "io.ktor.server.response.* is a wildcard import. Replace it with fully qualified imports."
           },
           "ruleId": "detekt.style.WildcardImport"
         },
