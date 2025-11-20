@@ -153,6 +153,9 @@ function M.setup(opts)
           vim.keymap.set('n', 'gr', vim.lsp.buf.references, keymap_opts)
           vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, keymap_opts)
           vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, keymap_opts)
+
+          -- シグネチャヘルプ（関数パラメータ情報の表示）
+          vim.keymap.set('i', '<C-k>', vim.lsp.buf.signature_help, keymap_opts)
         end,
       })
     end,

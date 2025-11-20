@@ -59,6 +59,14 @@ function M.goto_declaration()
   get_ts_definition().goto_declaration()
 end
 
+-- LSP基本機能
+-- ==================
+
+--- シグネチャヘルプ（関数パラメータ情報を表示）
+function M.signature_help()
+  vim.lsp.buf.signature_help()
+end
+
 -- デコンパイル機能
 -- ==================
 
@@ -187,6 +195,7 @@ function M.get_which_key_spec()
     { "gy", M.goto_type_definition, desc = "Go to Type Definition", mode = "n" },
     { "gi", M.goto_implementation, desc = "Go to Implementation", mode = "n" },
     { "gD", M.goto_declaration, desc = "Go to Declaration", mode = "n" },
+    { "<C-k>", M.signature_help, desc = "Signature Help", mode = "i" },
 
     { "<leader>k", group = "Kotlin" },
     { "<leader>kd", M.decompile, desc = "Decompile", mode = "n" },
@@ -215,6 +224,7 @@ function M.get_telescope_actions()
     { name = "Go to Type Definition", action = M.goto_type_definition },
     { name = "Go to Implementation", action = M.goto_implementation },
     { name = "Go to Declaration", action = M.goto_declaration },
+    { name = "Signature Help", action = M.signature_help },
     { name = "Decompile", action = M.decompile },
     { name = "Organize Imports", action = M.organize_imports },
     { name = "Export Workspace", action = M.export_workspace },
