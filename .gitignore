@@ -17,6 +17,7 @@ luacov.*
 
 # Temporary files
 *.tmp
+.todo
 
 # Editor
 .vscode/
@@ -27,3 +28,8 @@ luacov.*
 
 # OS
 Thumbs.db
+
+# Development artifacts
+docs/*_PLAN.md
+docs/*_TEST.md
+docs/*_REVIEW*.md
