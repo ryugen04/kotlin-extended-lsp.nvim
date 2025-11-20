@@ -86,6 +86,12 @@ function M.clear_decompile_cache()
   get_decompile().clear_cache()
 end
 
+--- LSPキャッシュをクリア（起動高速化用）
+function M.clear_lsp_cache()
+  local optimizer = require('kotlin-extended-lsp.features.startup_optimizer')
+  optimizer.clear_cache()
+end
+
 -- カスタムコマンド
 -- ==================
 

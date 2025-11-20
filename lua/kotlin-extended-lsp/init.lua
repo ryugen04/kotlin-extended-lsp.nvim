@@ -42,10 +42,12 @@ function M.setup(opts)
     return
   end
 
-  -- Treesitterパーサーの自動セットアップ（オプション）
+  -- Treesitterパーサーの自動セットアップ（非同期・オプション）
   if opts.enable_ts_definition ~= false and opts.auto_install_treesitter ~= false then
-    local ts_setup = require('kotlin-extended-lsp.treesitter_setup')
-    ts_setup.setup()
+    vim.schedule(function()
+      local ts_setup = require('kotlin-extended-lsp.treesitter_setup')
+      ts_setup.setup()
+    end)
   end
 
   -- デコンパイル機能をセットアップ
@@ -138,13 +140,26 @@ function M.setup(opts)
 
       local root_dir = vim.fs.dirname(found[1])
 
-      -- LSPクライアントを起動
-      vim.lsp.start({
+      -- 起動最適化機能を使用
+      local optimizer = require('kotlin-extended-lsp.features.startup_optimizer')
+
+      -- すでに起動しているかチェック
+      local existing_client = optimizer.is_lsp_running(root_dir)
+      if existing_client then
+        -- 既存のクライアントを再利用
+        vim.lsp.buf_attach_client(ev.buf, existing_client.id)
+        return
+      end
+
+      -- LSP設定
+      local lsp_config = {
         name = 'kotlin-lsp',
         cmd = { lsp_cmd, '--stdio' },
         root_dir = root_dir,
+        -- 最適化されたinitializationOptions
+        init_options = opts.init_options or optimizer.get_optimized_init_options(),
         on_attach = function(client, bufnr)
-          vim.notify('kotlin-lsp attached to buffer ' .. bufnr, vim.log.levels.INFO)
+          vim.notify('kotlin-lsp ready!', vim.log.levels.INFO)
 
           -- 基本的なキーマップを設定
           -- 注: gd, gi, gyは各feature moduleでオーバーライドされる
@@ -157,7 +172,10 @@ function M.setup(opts)
           -- シグネチャヘルプ（関数パラメータ情報の表示）
           vim.keymap.set('i', '<C-k>', vim.lsp.buf.signature_help, keymap_opts)
         end,
-      })
+      }
+
+      -- 非同期起動（進捗表示付き）
+      optimizer.start_lsp_async(lsp_config)
     end,
   })
 
