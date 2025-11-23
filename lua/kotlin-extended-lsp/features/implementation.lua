@@ -230,36 +230,6 @@ local function find_via_workspace_symbol(client, symbol_name, def_uri, callback)
   end)
 end
 
--- 戦略4: Grep fallback（LSPが失敗した場合）
-local function find_via_grep(symbol_name, callback)
-  -- workspace内でシンボル名をgrepで検索
-  vim.fn.jobstart({'rg', '--json', symbol_name, vim.fn.getcwd()}, {
-    stdout_buffered = true,
-    on_stdout = function(_, data)
-      local implementations = {}
-
-      for _, line in ipairs(data) do
-        if line ~= '' then
-          local ok, decoded = pcall(vim.json.decode, line)
-          if ok and decoded.type == 'match' then
-            local file = decoded.data.path.text
-            local line_num = decoded.data.line_number
-
-            table.insert(implementations, {
-              name = symbol_name,
-              file = file,
-              line = line_num,
-              source = 'grep_fallback'
-            })
-          end
-        end
-      end
-
-      callback(implementations)
-    end
-  })
-end
-
 -- 実装をスコアリングして優先順位付け
 local function score_and_sort(implementations, symbol_name, context)
   for _, impl in ipairs(implementations) do

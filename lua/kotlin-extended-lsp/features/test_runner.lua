@@ -44,20 +44,43 @@ local function extract_package_name(file_path)
   return nil
 end
 
--- カーソル位置のテスト関数名を取得
-local function get_test_at_cursor()
-  if not ts_utils.is_treesitter_available() then
-    return nil
+-- Kotest test("name")を検出
+local function find_kotest_test(node, bufnr)
+  while node do
+    if node:type() == 'call_expression' then
+      -- function名が"test"かチェック
+      for child in node:iter_children() do
+        if child:type() == 'simple_identifier' then
+          local func_name = vim.treesitter.get_node_text(child, bufnr)
+          if func_name == 'test' then
+            -- 第1引数の文字列リテラルを取得
+            for arg_child in node:iter_children() do
+              if arg_child:type() == 'value_arguments' then
+                for arg in arg_child:iter_children() do
+                  if arg:type() == 'value_argument' then
+                    for str_node in arg:iter_children() do
+                      if str_node:type() == 'string_literal' then
+                        local test_name = vim.treesitter.get_node_text(str_node, bufnr)
+                        -- クォートを除去
+                        test_name = test_name:gsub('^"', ''):gsub('"$', '')
+                        return test_name
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    node = node:parent()
   end
+  return nil
+end
 
-  local bufnr = vim.api.nvim_get_current_buf()
-  local node = ts_utils.get_node_at_cursor(bufnr)
-
-  if not node then
-    return nil
-  end
-
-  -- function_declaration ノードを探索
+-- JUnit @Testアノテーションを検出
+local function find_junit_test(node, bufnr)
   while node do
     if node:type() == 'function_declaration' then
       -- @Test アノテーションがあるか確認
@@ -86,6 +109,33 @@ local function get_test_at_cursor()
       end
     end
     node = node:parent()
+  end
+  return nil
+end
+
+-- カーソル位置のテスト関数名を取得（JUnit・Kotest両対応）
+local function get_test_at_cursor()
+  if not ts_utils.is_treesitter_available() then
+    return nil
+  end
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local node = ts_utils.get_node_at_cursor(bufnr)
+
+  if not node then
+    return nil
+  end
+
+  -- JUnit検出
+  local junit_test = find_junit_test(node, bufnr)
+  if junit_test then
+    return junit_test
+  end
+
+  -- Kotest検出
+  local kotest_test = find_kotest_test(node, bufnr)
+  if kotest_test then
+    return kotest_test
   end
 
   return nil
@@ -209,7 +259,12 @@ local function run_test(test_pattern, opts)
 
   if test_pattern then
     table.insert(command, '--tests')
-    table.insert(command, test_pattern)
+    -- Kotestのtest名にスペースが含まれる場合はクォートで囲む
+    if test_pattern:match('%s') then
+      table.insert(command, '"' .. test_pattern .. '"')
+    else
+      table.insert(command, test_pattern)
+    end
   end
 
   table.insert(command, '--rerun-tasks')

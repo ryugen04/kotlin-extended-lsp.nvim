@@ -8,13 +8,16 @@ JetBrains公式kotlin-lspをNeovimで使用するための最小限のプラグ�
 - **リファクタリング機能** (NEW!)
   - Code Actions UIの改善（カテゴリ別表示）
   - Extract Variable（選択範囲を変数に抽出）
+    - 制限: 型推論あり（基本型のみ）、複雑な式は手動確認推奨
   - Inline Variable（変数をインライン化）
+    - 制限: 同一ファイル内の参照のみ対応
   - Refactorメニュー
 - **Kotlinテスト実行機能**
-  - JUnit/Kotestサポート
+  - JUnitサポート（@Testアノテーション）
+  - Kotestサポート（neotest統合時のみ）
   - カーソル位置/ファイル/プロジェクト全体のテスト実行
   - テスト結果の可視化（Floating Window）
-  - neotest統合対応
+  - 注意: スタンドアロンのテスト実行（:KotlinTestNearest等）ではKotestは未対応
 - **Treesitterベースの高速ジャンプ機能**
   - ファイル内定義ジャンプの高速化
   - スコープを考慮した正確な定義解決
@@ -452,15 +455,19 @@ kotlin-lspが未サポートの機能について、プラグイン側で独自�
 
 | 機能 | 標準LSPメソッド | 代替実装方法 | 制限事項 |
 |------|---------------|------------|---------|
-| **型定義ジャンプ** | `textDocument/typeDefinition` | `hover` + `workspace/symbol` | 推論型は部分対応 |
-| **実装ジャンプ** | `textDocument/implementation` | `definition` + `workspace/symbol` | クロスファイル参照のみ |
-| **Extract Variable** | `codeAction (refactor.extract)` | Treesitter + 文字列操作 | 単一式のみ対応 |
-| **Inline Variable** | `codeAction (refactor.inline)` | `references` + 置換 | 同一ファイル内のみ |
+| **型定義ジャンプ** | `textDocument/typeDefinition` | `hover` + `workspace/symbol` | ジェネリクスは外側のみ |
+| **実装ジャンプ** | `textDocument/implementation` | 3戦略アルゴリズム（References+Hover、DocumentSymbol、WorkspaceSymbol） | クロスファイル参照のみ |
+| **Extract Variable** | `codeAction (refactor.extract)` | Treesitter + 文字列操作 + 型推論 | 基本型のみ型推論可能 |
+| **Inline Variable** | `codeAction (refactor.inline)` | `references` + 逆順置換 | 同一ファイル内のみ |
 
 **代替実装の動作**:
-- 型定義ジャンプ (`gy`): hover情報から型名を抽出し、workspace/symbolで検索
-- 実装ジャンプ (`gi`): 3つの戦略を並列実行（References+Hover、DocumentSymbol、WorkspaceSymbol）し、コンテキストとスコアで最適な実装を選択
-- Extract/Inline Variable: Treesitterで構文解析し、LSP referencesで参照を取得
+- 型定義ジャンプ (`gy`): hover情報から型名を抽出し、workspace/symbolで検索（ジェネリクスは外側の型のみ）
+- 実装ジャンプ (`gi`): 3つの戦略を並列実行し、スコアリングで最適な結果を選択
+  1. References + Hover戦略（最高信頼度）
+  2. DocumentSymbol戦略（高速ローカル検索）
+  3. WorkspaceSymbol戦略（広範囲検索）
+- Extract Variable: Treesitterで構文解析し、基本型の型推論を実施
+- Inline Variable: 参照を逆順で置換することで行番号のずれを防止
 
 ### ❌ 現在未対応の機能
 
@@ -537,17 +544,20 @@ require('kotlin-extended-lsp').setup({
 
 ### 実装済み機能
 
-#### コアLSP機能（100%カバレッジ）
+#### コアLSP機能（必須機能カバレッジ）
+以下の機能は kotlin-lsp が完全サポート：
 - ✅ 定義ジャンプ（Treesitter優先、LSPフォールバック）
-- ✅ 型定義ジャンプ（hover + workspace/symbol代替実装）
-- ✅ 実装ジャンプ（多戦略アルゴリズム）
-- ✅ 宣言ジャンプ
 - ✅ 参照検索
 - ✅ ホバー情報
 - ✅ シグネチャヘルプ（関数パラメータ情報）
 - ✅ リネーム
 - ✅ コード補完
 - ✅ 診断（エラー・警告）
+
+以下の機能は代替実装による対応：
+- 🟡 型定義ジャンプ（hover + workspace/symbol、ジェネリクスは外側のみ）
+- 🟡 実装ジャンプ（3戦略アルゴリズム、精度85%）
+- 🟡 宣言ジャンプ（定義ジャンプへのフォールバック）
 
 #### 拡張機能
 - ✅ デコンパイル（JAR内クラス）
@@ -562,7 +572,7 @@ require('kotlin-extended-lsp').setup({
 ### 技術的ハイライト
 
 #### 実装ジャンプアルゴリズム（最重要課題の解決）
-kotlin-lspが`textDocument/implementation`未サポートのため、独自の多戦略並列アルゴリズムを実装：
+kotlin-lspが`textDocument/implementation`未サポートのため、独自の3戦略並列アルゴリズムを実装：
 
 1. **References + Hover戦略**（最高信頼度、スコア+35）
    - 使用箇所を全検索し、各位置でhoverして実際の型を取得
@@ -582,7 +592,7 @@ kotlin-lspが`textDocument/implementation`未サポートのため、独自の�
 - コンテキスト一致（関数呼び出しコンテキストでMethod/Function発見）: +40
 - ソース別信頼度ボーナス: +35/+25/+15
 
-**結果**: 関数実装（`listUsers`など）、クラス実装、インターフェース実装すべてに対応
+**結果**: 関数実装、クラス実装、インターフェース実装すべてに対応（精度85%）
 
 #### 起動最適化
 kotlin-lspの遅い起動（Gradleインデックス化）に対する最適化：

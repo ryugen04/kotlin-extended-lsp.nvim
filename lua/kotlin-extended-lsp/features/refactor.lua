@@ -136,12 +136,78 @@ function M.code_actions()
   end)
 end
 
+-- 式から型を推論
+local function infer_type_from_expression(text)
+  -- 空白をトリム
+  text = text:match('^%s*(.-)%s*$')
+
+  -- 整数リテラル
+  if text:match('^%-?%d+$') then
+    return 'Int'
+  end
+
+  -- 浮動小数点リテラル
+  if text:match('^%-?%d+%.%d+[fF]?$') or text:match('^%-?%d+[fF]$') then
+    return 'Float'
+  end
+
+  -- Double リテラル
+  if text:match('^%-?%d+%.%d+$') then
+    return 'Double'
+  end
+
+  -- Long リテラル
+  if text:match('^%-?%d+[lL]$') then
+    return 'Long'
+  end
+
+  -- 文字列リテラル
+  if text:match('^"') or text:match('^"""') then
+    return 'String'
+  end
+
+  -- Boolean リテラル
+  if text == 'true' or text == 'false' then
+    return 'Boolean'
+  end
+
+  -- null
+  if text == 'null' then
+    return 'Nothing?'
+  end
+
+  -- Charリテラル
+  if text:match("^'.'$") then
+    return 'Char'
+  end
+
+  -- 配列/リストリテラル
+  if text:match('^listOf') or text:match('^mutableListOf') then
+    return nil  -- ジェネリクスが必要なので推論不可
+  end
+
+  if text:match('^arrayOf') or text:match('^intArrayOf') then
+    if text:match('^intArrayOf') then
+      return 'IntArray'
+    end
+    return nil  -- ジェネリクスが必要
+  end
+
+  -- Map
+  if text:match('^mapOf') or text:match('^mutableMapOf') then
+    return nil  -- ジェネリクスが必要
+  end
+
+  -- それ以外は推論不可
+  return nil
+end
+
 -- Extract Variable（独自実装）
 function M.extract_variable()
   -- Visual modeの範囲を取得
   local mode = vim.fn.mode()
-  if mode ~= 'v' and mode ~= 'V' then
-    vim.notify('Extract variable requires visual selection', vim.log.levels.WARN)
+  if mode ~= 'v' and mode ~= 'V' and mode ~= '\22' then  -- \22 is visual block mode
+    vim.notify('変数抽出にはビジュアル選択が必要です', vim.log.levels.WARN)
     return
   end
 
@@ -168,6 +234,12 @@ function M.extract_variable()
     selected_text = table.concat(lines, '\n')
   end
 
+  -- 選択範囲のバリデーション
+  if not selected_text or selected_text:match('^%s*$') then
+    vim.notify('選択範囲が空です', vim.log.levels.WARN)
+    return
+  end
+
   -- 変数名を入力
   vim.ui.input({
     prompt = 'Variable name: ',
@@ -177,10 +249,11 @@ function M.extract_variable()
       return
     end
 
-    -- Treesitterで型情報を推測（オプション）
+    -- 型推論を試行
+    local inferred_type = infer_type_from_expression(selected_text)
     local type_hint = ''
-    if ts_utils.is_treesitter_available() then
-      -- TODO: 型推論の実装（将来の拡張）
+    if inferred_type then
+      type_hint = ': ' .. inferred_type
     end
 
     -- 変数宣言を生成
@@ -273,27 +346,38 @@ function M.inline_variable()
         return
       end
 
-      -- 全参照を初期化式で置換
+      -- 同じファイル内の参照のみをフィルタ
+      local same_file_refs = {}
       for _, ref in ipairs(result) do
-        local ref_uri = ref.uri
-        local ref_range = ref.range
-
-        -- 同じファイルの場合のみ処理（簡易実装）
-        if ref_uri == vim.uri_from_bufnr(bufnr) then
-          local ref_start_row = ref_range.start.line
-          local ref_start_col = ref_range.start.character
-          local ref_end_row = ref_range['end'].line
-          local ref_end_col = ref_range['end'].character
-
-          vim.api.nvim_buf_set_text(
-            bufnr,
-            ref_start_row,
-            ref_start_col,
-            ref_end_row,
-            ref_end_col,
-            { initializer }
-          )
+        if ref.uri == vim.uri_from_bufnr(bufnr) then
+          table.insert(same_file_refs, ref)
         end
+      end
+
+      -- 参照を位置でソート（逆順: 末尾から先頭へ）
+      -- これにより、置換時に行番号がずれる問題を回避
+      table.sort(same_file_refs, function(a, b)
+        if a.range.start.line == b.range.start.line then
+          return a.range.start.character > b.range.start.character
+        end
+        return a.range.start.line > b.range.start.line
+      end)
+
+      -- 逆順で置換（行番号のずれを防ぐ）
+      for _, ref in ipairs(same_file_refs) do
+        local ref_start_row = ref.range.start.line
+        local ref_start_col = ref.range.start.character
+        local ref_end_row = ref.range['end'].line
+        local ref_end_col = ref.range['end'].character
+
+        vim.api.nvim_buf_set_text(
+          bufnr,
+          ref_start_row,
+          ref_start_col,
+          ref_end_row,
+          ref_end_col,
+          { initializer }
+        )
       end
 
       -- 変数宣言を削除
