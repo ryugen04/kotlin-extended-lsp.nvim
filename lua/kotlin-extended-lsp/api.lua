@@ -36,6 +36,10 @@ local function get_refactor()
   return require('kotlin-extended-lsp.features.refactor')
 end
 
+local function get_detekt()
+  return require('kotlin-extended-lsp.features.detekt')
+end
+
 -- ジャンプ機能
 -- ==================
 
@@ -149,6 +153,14 @@ end
 --- Inline Variable
 function M.inline_variable()
   get_refactor().inline_variable()
+end
+
+-- Detekt機能
+-- ==================
+
+--- 手動でDetektを実行
+function M.lint()
+  get_detekt().lint()
 end
 
 -- which-key統合用のグループ定義

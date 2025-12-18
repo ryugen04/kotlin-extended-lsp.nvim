@@ -75,7 +75,16 @@ end
 
 -- ワークスペースキャッシュの場所を取得
 function M.get_cache_dir()
-  local cache_home = os.getenv('XDG_CACHE_HOME') or (os.getenv('HOME') .. '/.cache')
+  local home = os.getenv('HOME') or ''
+  if home == '' then
+    return nil
+  end
+
+  if vim.loop.os_uname().sysname == 'Darwin' then
+    return home .. '/Library/Caches/kotlin-lsp'
+  end
+
+  local cache_home = os.getenv('XDG_CACHE_HOME') or (home .. '/.cache')
   return cache_home .. '/kotlin-lsp'
 end
 
@@ -95,16 +104,20 @@ end
 
 -- 初期化オプションの最適化
 function M.get_optimized_init_options()
-  return {
+  local opts = {
     -- Gradle sync を遅延実行
     deferGradleSync = true,
 
     -- インデックス化を段階的に実行
     incrementalIndexing = true,
-
-    -- キャッシュディレクトリの指定
-    cacheDirectory = M.get_cache_dir(),
   }
+
+  local cache_dir = M.get_cache_dir()
+  if cache_dir then
+    opts.cacheDirectory = cache_dir
+  end
+
+  return opts
 end
 
 return M

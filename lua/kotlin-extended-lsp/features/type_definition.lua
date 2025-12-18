@@ -162,6 +162,12 @@ function M.go_to_type_definition()
     return
   end
 
+  -- サーバーが標準メソッドをサポートしている場合は標準を使用
+  if client.supports_method('textDocument/typeDefinition') then
+    vim.lsp.buf.type_definition()
+    return
+  end
+
   local params = vim.lsp.util.make_position_params()
 
   -- Step 1: hoverで型情報を取得

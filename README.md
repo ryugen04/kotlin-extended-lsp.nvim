@@ -72,6 +72,16 @@ cd ~/.local/share/nvim/lazy/kotlin-extended-lsp.nvim
 ./scripts/install-lsp.sh
 ```
 
+オプション指定:
+
+```bash
+# 最新版を強制再インストール
+./scripts/install-lsp.sh --latest --force
+
+# 任意のバージョンを指定してインストール
+./scripts/install-lsp.sh --version 0.253.10629
+```
+
 スクリプトは以下を自動的に実行します:
 - JetBrains公式リポジトリから最新版をダウンロード
 - `bin/kotlin-lsp/`に展開
@@ -132,6 +142,32 @@ Kotlinファイルを開くと自動的にkotlin-lspが起動します。
 | `:KotlinTestNearest` | カーソル位置のテストを実行 |
 | `:KotlinTestFile` | ファイル全体のテストを実行 |
 | `:KotlinTestAll` | プロジェクト全体のテストを実行 |
+| `:KotlinLspCheckUpdate` | kotlin-lspの更新を確認 |
+| `:KotlinLspInstallLatest` | 最新版kotlin-lspをインストール |
+| `:KotlinStopLsp` | kotlin-lspを停止 |
+| `:KotlinRestartLsp` | kotlin-lspを再起動 |
+
+### 設定例
+
+```lua
+require('kotlin-extended-lsp').setup({
+  -- 新しいkotlin-lspオプションを使う場合
+  init_options = {
+    deferGradleSync = false,
+  },
+  settings = {
+    -- サーバー設定を理解する場合に使用
+  },
+  lsp_args = {},
+  env = { GITHUB_TOKEN = os.getenv('GITHUB_TOKEN') },
+  prefer_lsp_definition = true,
+  prioritize_dependency_resolution = true,
+  cache_directory = "~/.cache/kotlin-lsp",
+  use_telescope = true,
+  check_lsp_update = true,
+  shutdown_on_exit = true,
+})
+```
 
 ### 外部プラグインとの統合
 

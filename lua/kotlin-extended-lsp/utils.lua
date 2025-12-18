@@ -14,6 +14,27 @@ function M.get_kotlin_lsp_client(bufnr)
   return clients[1], nil
 end
 
+-- kotlin-lspクライアント一覧を取得
+function M.get_kotlin_lsp_clients(opts)
+  opts = opts or {}
+  local filter = vim.tbl_extend('force', { name = 'kotlin-lsp' }, opts)
+  return vim.lsp.get_clients(filter)
+end
+
+-- kotlin-lspクライアントを停止
+function M.stop_kotlin_lsp_clients(opts)
+  opts = opts or {}
+  local clients = M.get_kotlin_lsp_clients(opts)
+  local stopped = 0
+
+  for _, client in ipairs(clients) do
+    vim.lsp.stop_client(client.id, opts.force)
+    stopped = stopped + 1
+  end
+
+  return stopped
+end
+
 -- LSP workspace/executeCommand を実行
 function M.execute_command(command, arguments, callback)
   local client, err = M.get_kotlin_lsp_client()

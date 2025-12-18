@@ -6,6 +6,334 @@ local utils = require('kotlin-extended-lsp.utils')
 local ts_utils = require('kotlin-extended-lsp.ts_utils')
 local M = {}
 
+local config = {
+  use_telescope = true,
+}
+
+local ignore_path_patterns = {
+  '/build/',
+  '/.gradle/',
+  '/.idea/',
+  '/out/',
+  '/generated/',
+  '/dist/',
+}
+
+local function path_is_ignored(path)
+  if not path then
+    return false
+  end
+  for _, pattern in ipairs(ignore_path_patterns) do
+    if path:find(pattern, 1, true) then
+      return true
+    end
+  end
+  return false
+end
+
+local function read_file_lines(path)
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    return nil
+  end
+  return lines
+end
+
+local function read_file_text(path)
+  local lines = read_file_lines(path)
+  if not lines then
+    return nil
+  end
+  return table.concat(lines, '\n')
+end
+
+local function extract_package(lines)
+  if not lines then
+    return nil
+  end
+  for i = 1, math.min(#lines, 50) do
+    local line = lines[i]
+    local pkg = line:match('^%s*package%s+([%w_%.]+)')
+    if pkg then
+      return pkg
+    end
+  end
+  return nil
+end
+
+local function match_target_name(text, target_name, target_qualified)
+  if not text then
+    return false
+  end
+  local escaped = vim.pesc(target_name)
+  if text:match('%f[%w_]' .. escaped .. '%f[^%w_]') then
+    return true
+  end
+  if target_qualified then
+    local escaped_qualified = vim.pesc(target_qualified)
+    if text:match('%f[%w_]' .. escaped_qualified .. '%f[^%w_]') then
+      return true
+    end
+  end
+  return false
+end
+
+local function matches_inheritance_treesitter(path, class_name, target_name, target_qualified)
+  if not path or path == '' then
+    return false
+  end
+
+  if not path:match('%.kt$') and not path:match('%.kts$') then
+    return false
+  end
+
+  local text = read_file_text(path)
+  if not text then
+    return false
+  end
+
+  local ok, parser = pcall(vim.treesitter.get_string_parser, text, 'kotlin')
+  if not ok or not parser then
+    return false
+  end
+
+  local tree = parser:parse()[1]
+  if not tree then
+    return false
+  end
+
+  local root = tree:root()
+  local found = false
+
+  local function inspect_class(node)
+    local name_node = nil
+    local delegation = nil
+    for child in node:iter_children() do
+      local ctype = child:type()
+      if ctype == 'simple_identifier' then
+        name_node = child
+      elseif ctype == 'delegation_specifiers' then
+        delegation = child
+      end
+    end
+
+    if not name_node then
+      return
+    end
+
+    local name_text = vim.treesitter.get_node_text(name_node, text)
+    if name_text ~= class_name then
+      return
+    end
+
+    local delegation_text = delegation and vim.treesitter.get_node_text(delegation, text) or ''
+    if match_target_name(delegation_text, target_name, target_qualified) then
+      found = true
+    end
+  end
+
+  local function walk(node)
+    if found then
+      return
+    end
+    local ntype = node:type()
+    if ntype == 'class_declaration' or ntype == 'object_declaration' then
+      inspect_class(node)
+    end
+    for child in node:iter_children() do
+      walk(child)
+      if found then
+        return
+      end
+    end
+  end
+
+  walk(root)
+  return found
+end
+
+local function matches_method_implementation_treesitter(path, method_name, target_name, target_qualified)
+  if not path or path == '' then
+    return false
+  end
+
+  if not path:match('%.kt$') and not path:match('%.kts$') then
+    return false
+  end
+
+  local text = read_file_text(path)
+  if not text then
+    return false
+  end
+
+  local ok, parser = pcall(vim.treesitter.get_string_parser, text, 'kotlin')
+  if not ok or not parser then
+    return false
+  end
+
+  local tree = parser:parse()[1]
+  if not tree then
+    return false
+  end
+
+  local root = tree:root()
+  local found = false
+
+  local function class_implements_target(node)
+    for child in node:iter_children() do
+      if child:type() == 'delegation_specifiers' then
+        local delegation_text = vim.treesitter.get_node_text(child, text)
+        if match_target_name(delegation_text, target_name, target_qualified) then
+          return true
+        end
+      end
+    end
+    return false
+  end
+
+  local function class_has_method(node)
+    for child in node:iter_children() do
+      if child:type() == 'class_body' then
+        for body_child in child:iter_children() do
+          if body_child:type() == 'function_declaration' then
+            for fn_child in body_child:iter_children() do
+              if fn_child:type() == 'simple_identifier' then
+                local name_text = vim.treesitter.get_node_text(fn_child, text)
+                if name_text == method_name then
+                  return true
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    return false
+  end
+
+  local function walk(node)
+    if found then
+      return
+    end
+    local ntype = node:type()
+    if ntype == 'class_declaration' or ntype == 'object_declaration' then
+      if class_implements_target(node) and class_has_method(node) then
+        found = true
+        return
+      end
+    end
+    for child in node:iter_children() do
+      walk(child)
+      if found then
+        return
+      end
+    end
+  end
+
+  walk(root)
+  return found
+end
+
+local function line_contains_target(line, target_name, target_qualified)
+  if not line then
+    return false
+  end
+  if not line:find(':', 1, true) then
+    return false
+  end
+  return match_target_name(line, target_name, target_qualified)
+end
+
+local function matches_inheritance(lines, start_line, target_name, target_qualified)
+  if not lines or not start_line then
+    return false
+  end
+  local first = math.max(start_line + 1, 1)
+  local last = math.min(first + 6, #lines)
+  for i = first, last do
+    if line_contains_target(lines[i], target_name, target_qualified) then
+      return true
+    end
+  end
+  return false
+end
+
+local function enrich_candidates(candidates, target_name, target_qualified, target_package)
+  local enriched = {}
+  for _, impl in ipairs(candidates) do
+    if impl.location and impl.location.uri then
+      local path = vim.uri_to_fname(impl.location.uri)
+      if not path_is_ignored(path) then
+        local lines = read_file_lines(path)
+        local package_name = extract_package(lines)
+        local start_line = impl.location.range and impl.location.range.start
+          and impl.location.range.start.line or 0
+        local ts_match = false
+        if impl.kind == 'Method' or impl.kind == 'Function' then
+          ts_match = matches_method_implementation_treesitter(
+            path,
+            impl.name,
+            target_name,
+            target_qualified
+          )
+        else
+          ts_match = matches_inheritance_treesitter(
+            path,
+            impl.name,
+            target_name,
+            target_qualified
+          )
+        end
+
+        impl._path = path
+        impl._package = package_name
+        impl._same_package = target_package and package_name == target_package or false
+        impl._inheritance_match = ts_match or matches_inheritance(
+          lines,
+          start_line,
+          target_name,
+          target_qualified
+        )
+        impl._is_test = path:find('/test/', 1, true) ~= nil
+
+        table.insert(enriched, impl)
+      end
+    end
+  end
+  return enriched
+end
+
+local function rank_and_filter(candidates, target_name, target_package)
+  for _, impl in ipairs(candidates) do
+    local score = 0
+    if impl._inheritance_match then
+      score = score + 100
+    end
+    if impl._same_package then
+      score = score + 15
+    end
+    if impl.name == target_name then
+      score = score + 20
+    end
+    if impl.name:match('Impl$') then
+      score = score + 10
+    end
+    if impl._is_test then
+      score = score - 10
+    end
+    if impl.kind == 'Class' or impl.kind == 'Object' then
+      score = score + 5
+    end
+    impl.score = score
+  end
+
+  table.sort(candidates, function(a, b)
+    return a.score > b.score
+  end)
+
+  return candidates
+end
+
 -- デバッグログ
 local function log(msg, level)
   if vim.g.kotlin_lsp_debug then
@@ -74,204 +402,73 @@ local function get_symbol_info()
   return context
 end
 
--- 戦略1: References + Hover で実装を探す
-local function find_via_references(client, symbol_name, callback)
-  local params = vim.lsp.util.make_position_params()
+-- Workspace Symbol で広範囲検索（クラス実装寄りに絞る）
+local function find_via_workspace_symbol(client, symbol_name, def_uri, context, callback)
+  local queries = { symbol_name, symbol_name .. 'Impl' }
+  if context and context.is_function_call then
+    queries = { symbol_name }
+  end
+  local pending = #queries
+  local collected = {}
 
-  client.request('textDocument/references', params, function(err, references)
-    if err or not references or #references == 0 then
-      callback(nil)
-      return
-    end
-
-    log(string.format('Found %d references', #references))
-
-    -- 各参照の型情報を取得
-    local implementations = {}
-    local pending = #references
-
-    for _, ref in ipairs(references) do
-      -- 参照位置でhoverを実行して型情報を取得
-      local hover_params = {
-        textDocument = { uri = ref.uri },
-        position = ref.range.start
-      }
-
-      client.request('textDocument/hover', hover_params, function(hover_err, hover_result)
-        vim.schedule(function()
-          if hover_result and hover_result.contents then
-            local contents = hover_result.contents
-            local value = type(contents) == 'table' and contents.value or contents
-
-            -- 型情報から実装クラスを抽出
-            -- 例: "val user: UserImpl" から "UserImpl" を抽出
-            if type(value) == 'string' then
-              local impl_type = value:match(':([^:]+)$')
-              if impl_type then
-                impl_type = impl_type:match('^%s*(.-)%s*$') -- trim
-
-                -- 元のシンボル名と異なる型を見つけた
-                if not impl_type:match('^' .. symbol_name .. '$') then
-                  table.insert(implementations, {
-                    name = impl_type,
-                    location = ref,
-                    source = 'reference_hover'
-                  })
-                  log('Found implementation via reference: ' .. impl_type)
-                end
-              end
-            end
+  local function handle_symbols(symbols)
+    if symbols then
+      for _, symbol in ipairs(symbols) do
+        if symbol.location then
+          local valid_kinds
+          if context and context.is_function_call then
+            valid_kinds = {
+              [vim.lsp.protocol.SymbolKind.Method] = true,
+              [vim.lsp.protocol.SymbolKind.Function] = true,
+            }
+          else
+            valid_kinds = {
+              [vim.lsp.protocol.SymbolKind.Class] = true,
+              [vim.lsp.protocol.SymbolKind.Object] = true,
+            }
           end
 
-          pending = pending - 1
-          if pending == 0 then
-            callback(implementations)
-          end
-        end)
-      end)
-    end
-  end)
-end
-
--- 戦略2: DocumentSymbol + containerNameでメンバーを探す
-local function find_via_document_symbols(client, symbol_name, callback)
-  local params = { textDocument = vim.lsp.util.make_text_document_params() }
-
-  client.request('textDocument/documentSymbol', params, function(err, symbols)
-    if err or not symbols then
-      callback(nil)
-      return
-    end
-
-    local implementations = {}
-
-    -- 再帰的にシンボルを探索
-    local function search_symbols(syms, container)
-      for _, sym in ipairs(syms) do
-        -- メソッドや関数を探す
-        if sym.kind == vim.lsp.protocol.SymbolKind.Method or
-           sym.kind == vim.lsp.protocol.SymbolKind.Function then
-
-          -- 名前が一致する場合
-          if sym.name == symbol_name then
-            table.insert(implementations, {
-              name = sym.name,
-              container = container or sym.containerName,
-              location = sym.location or { uri = params.textDocument.uri, range = sym.range },
-              kind = vim.lsp.protocol.SymbolKind[sym.kind],
-              source = 'document_symbol'
-            })
-            log('Found method: ' .. sym.name .. ' in ' .. (container or 'unknown'))
-          end
-        end
-
-        -- 子シンボルを探索
-        if sym.children then
-          search_symbols(sym.children, sym.name)
-        end
-      end
-    end
-
-    search_symbols(symbols)
-    callback(implementations)
-  end)
-end
-
--- 戦略3: Workspace Symbol で広範囲検索
-local function find_via_workspace_symbol(client, symbol_name, def_uri, callback)
-  local symbol_params = { query = symbol_name }
-
-  client.request('workspace/symbol', symbol_params, function(err, symbols)
-    if err or not symbols or #symbols == 0 then
-      callback(nil)
-      return
-    end
-
-    log(string.format('workspace/symbol found %d symbols', #symbols))
-
-    local implementations = {}
-
-    for _, symbol in ipairs(symbols) do
-      if symbol.location then
-        local is_different_file = symbol.location.uri ~= def_uri
-
-        -- より広範な種類を受け入れる
-        local valid_kinds = {
-          [vim.lsp.protocol.SymbolKind.Class] = true,
-          [vim.lsp.protocol.SymbolKind.Interface] = true,
-          [vim.lsp.protocol.SymbolKind.Object] = true,
-          [vim.lsp.protocol.SymbolKind.Method] = true,
-          [vim.lsp.protocol.SymbolKind.Function] = true,
-        }
-
-        if valid_kinds[symbol.kind] then
-          -- 完全一致または部分一致（接尾辞Impl, 接頭辞など）
-          local name_matches = symbol.name == symbol_name or
-                               symbol.name:match(symbol_name .. 'Impl$') or
-                               symbol.name:match('^' .. symbol_name .. 'Impl') or
-                               symbol.name:match(symbol_name)
-
-          if name_matches or is_different_file then
-            table.insert(implementations, {
+          if valid_kinds[symbol.kind] then
+            table.insert(collected, {
               name = symbol.name,
               container = symbol.containerName,
               location = symbol.location,
               kind = vim.lsp.protocol.SymbolKind[symbol.kind],
               source = 'workspace_symbol',
-              score = name_matches and 10 or 1  -- スコアリング
             })
-            log('Found symbol: ' .. symbol.name .. ' [' .. (symbol.containerName or ''))
           end
         end
       end
     end
 
-    callback(implementations)
-  end)
-end
-
--- 実装をスコアリングして優先順位付け
-local function score_and_sort(implementations, symbol_name, context)
-  for _, impl in ipairs(implementations) do
-    impl.score = impl.score or 0
-
-    -- 名前の完全一致
-    if impl.name == symbol_name then
-      impl.score = impl.score + 50
-    end
-
-    -- Impl接尾辞
-    if impl.name:match('Impl$') then
-      impl.score = impl.score + 30
-    end
-
-    -- 関数コンテキストでMethod/Functionならボーナス
-    if context.is_function_call and
-       (impl.kind == 'Method' or impl.kind == 'Function') then
-      impl.score = impl.score + 40
-    end
-
-    -- クラスコンテキストでClassならボーナス
-    if context.is_class_reference and impl.kind == 'Class' then
-      impl.score = impl.score + 40
-    end
-
-    -- ソース別のボーナス
-    if impl.source == 'reference_hover' then
-      impl.score = impl.score + 35  -- 最も信頼性が高い
-    elseif impl.source == 'document_symbol' then
-      impl.score = impl.score + 25
-    elseif impl.source == 'workspace_symbol' then
-      impl.score = impl.score + 15
+    pending = pending - 1
+    if pending == 0 then
+      callback(collected)
     end
   end
 
-  -- スコアでソート
-  table.sort(implementations, function(a, b)
-    return a.score > b.score
-  end)
+  for _, query in ipairs(queries) do
+    client.request('workspace/symbol', { query = query }, function(err, symbols)
+      if err or not symbols or #symbols == 0 then
+        handle_symbols(nil)
+        return
+      end
+      log(string.format('workspace/symbol[%s] found %d symbols', query, #symbols))
+      handle_symbols(symbols)
+    end)
+  end
+end
 
-  return implementations
+local function get_package_from_uri(uri)
+  if not uri then
+    return nil
+  end
+  local path = vim.uri_to_fname(uri)
+  if not path then
+    return nil
+  end
+  local lines = read_file_lines(path)
+  return extract_package(lines)
 end
 
 -- メイン実装ジャンプ関数
@@ -284,6 +481,13 @@ function M.go_to_implementation()
 
   -- サーバーが標準メソッドをサポートしている場合は標準を使用
   if client.supports_method('textDocument/implementation') then
+    if config.use_telescope then
+      local ok, builtin = pcall(require, 'telescope.builtin')
+      if ok then
+        builtin.lsp_implementations()
+        return
+      end
+    end
     vim.lsp.buf.implementation()
     return
   end
@@ -309,81 +513,104 @@ function M.go_to_implementation()
         log('Definition URI: ' .. def_uri)
       end
 
-      -- 複数の戦略を並列実行
-      local all_implementations = {}
-      local strategies_completed = 0
-      local total_strategies = 3
+  local target_package = get_package_from_uri(def_uri)
 
-      local function collect_results(results)
-        strategies_completed = strategies_completed + 1
+  find_via_workspace_symbol(client, context.word, def_uri, context, function(results)
+    vim.schedule(function()
+      if not results or #results == 0 then
+        vim.notify('No implementations found for: ' .. context.word, vim.log.levels.WARN)
+        return
+      end
 
-        if results and #results > 0 then
-          for _, impl in ipairs(results) do
-            table.insert(all_implementations, impl)
-          end
-        end
-
-        -- 全戦略完了後に結果を表示
-        if strategies_completed >= total_strategies then
-          vim.schedule(function()
-            if #all_implementations == 0 then
-              vim.notify('No implementations found for: ' .. context.word, vim.log.levels.WARN)
-              return
-            end
-
-            -- 重複除去
-            local seen = {}
-            local unique = {}
-            for _, impl in ipairs(all_implementations) do
-              local key = (impl.location and impl.location.uri or '') .. ':' .. impl.name
-              if not seen[key] then
-                seen[key] = true
-                table.insert(unique, impl)
-              end
-            end
-
-            -- スコアリングとソート
-            unique = score_and_sort(unique, context.word, context)
-
-            log(string.format('Found %d unique implementations', #unique))
-
-            -- 1つの実装のみの場合は直接ジャンプ
-            if #unique == 1 then
-              local impl = unique[1]
-              if impl.location then
-                vim.lsp.util.jump_to_location(impl.location, 'utf-8')
-                vim.notify('Jumped to implementation: ' .. impl.name, vim.log.levels.INFO)
-              end
-              return
-            end
-
-            -- 複数の実装がある場合は選択UI
-            vim.ui.select(unique, {
-              prompt = 'Select implementation (' .. #unique .. ' found):',
-              format_item = function(impl)
-                local container = impl.container and (' in ' .. impl.container) or ''
-                local kind = impl.kind and (' [' .. impl.kind .. ']') or ''
-                local score_str = ' (score: ' .. (impl.score or 0) .. ')'
-                return string.format('%s%s%s%s', impl.name, container, kind, score_str)
-              end,
-            }, function(selected)
-              if selected and selected.location then
-                vim.lsp.util.jump_to_location(selected.location, 'utf-8')
-                vim.notify('Jumped to implementation: ' .. selected.name, vim.log.levels.INFO)
-              end
-            end)
-          end)
+      -- 重複除去
+      local seen = {}
+      local unique = {}
+      for _, impl in ipairs(results) do
+        local key = (impl.location and impl.location.uri or '') .. ':' .. impl.name
+        if not seen[key] then
+          seen[key] = true
+          table.insert(unique, impl)
         end
       end
 
-      -- 戦略1: References + Hover
-      find_via_references(client, context.word, collect_results)
+      local target_qualified = target_package and (target_package .. '.' .. context.word) or nil
+      unique = enrich_candidates(unique, context.word, target_qualified, target_package)
+      unique = rank_and_filter(unique, context.word, target_package)
 
-      -- 戦略2: Document Symbol
-      find_via_document_symbols(client, context.word, collect_results)
+      log(string.format('Found %d unique implementations', #unique))
 
-      -- 戦略3: Workspace Symbol
-      find_via_workspace_symbol(client, context.word, def_uri, collect_results)
+      if #unique == 0 then
+        vim.notify('No implementations found for: ' .. context.word, vim.log.levels.WARN)
+        return
+      end
+
+      -- 1つの実装のみの場合は直接ジャンプ
+      if #unique == 1 then
+        local impl = unique[1]
+        if impl.location then
+          vim.lsp.util.jump_to_location(impl.location, 'utf-8')
+          vim.notify('Jumped to implementation: ' .. impl.name, vim.log.levels.INFO)
+        end
+        return
+      end
+
+      -- 複数の実装がある場合は選択UI
+      if config.use_telescope then
+        local ok, pickers = pcall(require, 'telescope.pickers')
+        if ok then
+          local finders = require('telescope.finders')
+          local conf = require('telescope.config').values
+          local actions = require('telescope.actions')
+          local action_state = require('telescope.actions.state')
+
+          pickers.new({}, {
+            prompt_title = 'Implementations (' .. #unique .. ')',
+            finder = finders.new_table({
+              results = unique,
+              entry_maker = function(impl)
+                local container = impl.container and (' in ' .. impl.container) or ''
+                local kind = impl.kind and (' [' .. impl.kind .. ']') or ''
+                local score_str = ' (score: ' .. (impl.score or 0) .. ')'
+                return {
+                  value = impl,
+                  display = string.format('%s%s%s%s', impl.name, container, kind, score_str),
+                  ordinal = impl.name .. (impl.container or ''),
+                }
+              end,
+            }),
+            sorter = conf.generic_sorter({}),
+            attach_mappings = function(prompt_bufnr, _)
+              actions.select_default:replace(function()
+                actions.close(prompt_bufnr)
+                local selection = action_state.get_selected_entry()
+                if selection and selection.value and selection.value.location then
+                  vim.lsp.util.jump_to_location(selection.value.location, 'utf-8')
+                  vim.notify('Jumped to implementation: ' .. selection.value.name, vim.log.levels.INFO)
+                end
+              end)
+              return true
+            end,
+          }):find()
+          return
+        end
+      end
+
+      vim.ui.select(unique, {
+        prompt = 'Select implementation (' .. #unique .. ' found):',
+        format_item = function(impl)
+          local container = impl.container and (' in ' .. impl.container) or ''
+          local kind = impl.kind and (' [' .. impl.kind .. ']') or ''
+          local score_str = ' (score: ' .. (impl.score or 0) .. ')'
+          return string.format('%s%s%s%s', impl.name, container, kind, score_str)
+        end,
+      }, function(selected)
+        if selected and selected.location then
+          vim.lsp.util.jump_to_location(selected.location, 'utf-8')
+          vim.notify('Jumped to implementation: ' .. selected.name, vim.log.levels.INFO)
+        end
+      end)
+    end)
+  end)
     end)
   end)
 end
@@ -391,6 +618,9 @@ end
 -- setup: コマンドとキーマップを設定
 function M.setup(opts)
   opts = opts or {}
+  if opts.use_telescope ~= nil then
+    config.use_telescope = opts.use_telescope
+  end
 
   -- コマンドを作成
   vim.api.nvim_create_user_command('KotlinGoToImplementation', function()

@@ -6,10 +6,89 @@ local ts_utils = require('kotlin-extended-lsp.ts_utils')
 local utils = require('kotlin-extended-lsp.utils')
 local M = {}
 
+local config = {
+  prefer_lsp = false,
+}
+
+local function jump_to_locations(locations, client)
+  if not locations or vim.tbl_isempty(locations) then
+    return false
+  end
+
+  if vim.tbl_islist(locations) and #locations > 1 then
+    vim.fn.setqflist(vim.lsp.util.locations_to_items(locations, client.offset_encoding))
+    vim.cmd('copen')
+    return true
+  end
+
+  local location = vim.tbl_islist(locations) and locations[1] or locations
+  vim.lsp.util.jump_to_location(location, client.offset_encoding)
+  return true
+end
+
+local function request_definition_with_fallback(fallback)
+  local client, err = utils.get_kotlin_lsp_client()
+  if not client then
+    vim.notify(err, vim.log.levels.ERROR)
+    fallback()
+    return
+  end
+
+  local params = vim.lsp.util.make_position_params()
+  client.request('textDocument/definition', params, function(req_err, result)
+    vim.schedule(function()
+      if req_err then
+        fallback()
+        return
+      end
+
+      if not jump_to_locations(result, client) then
+        fallback()
+      end
+    end)
+  end)
+end
+
+local function request_type_definition_with_fallback(fallback)
+  local client, err = utils.get_kotlin_lsp_client()
+  if not client then
+    vim.notify(err, vim.log.levels.ERROR)
+    fallback()
+    return
+  end
+
+  if not client.supports_method('textDocument/typeDefinition') then
+    fallback()
+    return
+  end
+
+  local params = vim.lsp.util.make_position_params()
+  client.request('textDocument/typeDefinition', params, function(req_err, result)
+    vim.schedule(function()
+      if req_err then
+        fallback()
+        return
+      end
+
+      if not jump_to_locations(result, client) then
+        fallback()
+      end
+    end)
+  end)
+end
+
 -- treesitterで定義を検索し、見つからなければLSPにフォールバック
 -- decompile機能と統合してJAR内ファイルにも対応
 function M.goto_definition()
   local bufnr = vim.api.nvim_get_current_buf()
+
+  if config.prefer_lsp then
+    request_definition_with_fallback(function()
+      local decompile = require('kotlin-extended-lsp.features.decompile')
+      decompile.go_to_definition()
+    end)
+    return
+  end
 
   -- treesitterが利用可能かチェック
   if not ts_utils.is_treesitter_available() then
@@ -47,6 +126,14 @@ end
 -- treesitterで型定義を検索し、見つからなければLSPにフォールバック
 function M.goto_type_definition()
   local bufnr = vim.api.nvim_get_current_buf()
+
+  if config.prefer_lsp then
+    request_type_definition_with_fallback(function()
+      local type_def = require('kotlin-extended-lsp.features.type_definition')
+      type_def.go_to_type_definition()
+    end)
+    return
+  end
 
   -- treesitterが利用可能かチェック
   if not ts_utils.is_treesitter_available() then
@@ -124,6 +211,7 @@ end
 -- setup: treesitterベースのジャンプ機能を有効化
 function M.setup(opts)
   opts = opts or {}
+  config.prefer_lsp = opts.prefer_lsp or false
 
   -- コマンドを作成（オプション）
   if opts.create_commands then
