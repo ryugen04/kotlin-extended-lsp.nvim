@@ -102,6 +102,29 @@ function M.clear_cache()
   end)
 end
 
+-- JAVA_HOMEを検出
+local function detect_java_home()
+  -- 環境変数から取得
+  local java_home = os.getenv('JAVA_HOME')
+  if java_home and java_home ~= '' then
+    return java_home
+  end
+
+  -- macOSの場合は /usr/libexec/java_home を使用
+  if vim.loop.os_uname().sysname == 'Darwin' then
+    local handle = io.popen('/usr/libexec/java_home 2>/dev/null')
+    if handle then
+      java_home = handle:read('*l')
+      handle:close()
+      if java_home and java_home ~= '' then
+        return java_home
+      end
+    end
+  end
+
+  return nil
+end
+
 -- 初期化オプションの最適化
 function M.get_optimized_init_options()
   local opts = {
@@ -115,6 +138,12 @@ function M.get_optimized_init_options()
   local cache_dir = M.get_cache_dir()
   if cache_dir then
     opts.cacheDirectory = cache_dir
+  end
+
+  -- VSCode相当: defaultJdk を設定（シンボル解決に使用）
+  local java_home = detect_java_home()
+  if java_home then
+    opts.defaultJdk = java_home
   end
 
   return opts

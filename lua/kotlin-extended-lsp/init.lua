@@ -44,6 +44,20 @@ local function build_lsp_cmd(lsp_cmd, opts)
   end
 
   local cmd = { lsp_cmd, '--stdio' }
+
+  -- VSCode相当の --system-path オプションを追加
+  -- これがないとkotlin-lspがワークスペースを正しくインデックス化できない
+  local system_path = opts.system_path
+  if system_path == nil then
+    -- デフォルト: ~/.local/state/nvim/kotlin-lsp
+    system_path = vim.fn.stdpath('state') .. '/kotlin-lsp'
+  end
+  if system_path and system_path ~= '' then
+    vim.fn.mkdir(system_path, 'p')
+    table.insert(cmd, '--system-path')
+    table.insert(cmd, system_path)
+  end
+
   if opts.lsp_args then
     for _, arg in ipairs(opts.lsp_args) do
       table.insert(cmd, arg)

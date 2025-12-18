@@ -164,6 +164,13 @@ require('kotlin-extended-lsp').setup({
   prioritize_dependency_resolution = true,
   cache_directory = "~/.cache/kotlin-lsp",
   use_telescope = true,
+  -- VSCode相当の起動モード（socket + --client + --system-path）
+  vscode_compat = false,
+  transport = "stdio", -- "socket" で socket接続を使用
+  system_path = "~/.local/share/nvim/kotlin-lsp",
+  socket_host = "127.0.0.1",
+  socket_port = 9998,
+  multi_client = false,
   check_lsp_update = true,
   shutdown_on_exit = true,
 })
